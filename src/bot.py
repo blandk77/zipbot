@@ -1,11 +1,10 @@
-
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
 from pathlib import Path
 import logging
 import os
-import time  # Import the time module
+import time
 import asyncio
 
 from dotenv import load_dotenv
@@ -13,16 +12,15 @@ from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
 
-from utils import download_files, add_to_zip  # Assuming these are correctly defined in utils.py
-
 load_dotenv()
 
-API_ID = int(os.environ['API_ID'])  # Ensure API_ID is an integer
+API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
 BOT_TOKEN = os.environ['BOT_TOKEN']
 CONC_MAX = int(os.environ.get('CONC_MAX', 3))
+LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))  # Added logs channel
 STORAGE = Path('./files/')
-os.makedirs(STORAGE, exist_ok=True) # Ensure storage directory exists
+os.makedirs(STORAGE, exist_ok=True)
 
 MessageEvent = NewMessage.Event | Message
 
@@ -34,21 +32,24 @@ logging.basicConfig(
     ]
 )
 
-# dict to keep track of tasks for every user
 tasks: dict[int, list[int]] = {}
-stop_download: dict[int, bool] = {} #track the stop process
-zip_names: dict[int, str] = {} # Track the zip name given by user
+stop_download: dict[int, bool] = {}
+zip_names: dict[int, str] = {}
 
 bot = TelegramClient(
     'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
 ).start(bot_token=BOT_TOKEN)
 
+# Check if LOGS_CHANNEL is configured before using it
+async def send_start_message():
+    if LOGS_CHANNEL:
+        try:
+            await bot.send_message(LOGS_CHANNEL, "Bot started/restarted!")
+        except Exception as e:
+            logging.error(f"Failed to send start message to logs channel: {e}")
 
 @bot.on(NewMessage(pattern='/start'))
 async def start_command_handler(event: MessageEvent):
-    """
-    Handles the /start command.
-    """
     await event.respond(
         'Hello! I am a bot that can help you zip files from Telegram.\n'
         'Use /help to see available commands.'
@@ -58,9 +59,6 @@ async def start_command_handler(event: MessageEvent):
 
 @bot.on(NewMessage(pattern='/help'))
 async def help_command_handler(event: MessageEvent):
-    """
-    Handles the /help command.
-    """
     await event.respond(
         'Available commands:\n'
         '/start - Starts the bot and shows a welcome message.\n'
@@ -80,13 +78,10 @@ async def help_command_handler(event: MessageEvent):
 
 @bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))
 async def start_task_handler(event: MessageEvent):
-    """
-    Notifies the bot that the user is going to send the media.
-    """
     sender_id = event.sender_id
     tasks[sender_id] = []
-    stop_download[sender_id] = False # Initialize stop_download to false
-    zip_names[sender_id] = event.pattern_match['name'] # Store the filename
+    stop_download[sender_id] = False
+    zip_names[sender_id] = event.pattern_match['name']
 
     await event.respond('OK, send me some files. Use /done when finished.')
 
@@ -96,21 +91,13 @@ async def start_task_handler(event: MessageEvent):
 @bot.on(NewMessage(
     func=lambda e: e.sender_id in tasks and e.file is not None))
 async def add_file_handler(event: MessageEvent):
-    """
-    Stores the ID of messages sent with files by this user.
-    """
     tasks[event.sender_id].append(event.id)
-
     raise StopPropagation
 
 
 @bot.on(NewMessage(pattern='/done'))
 async def zip_handler(event: MessageEvent):
-    """
-    Zips the media of messages corresponding to the IDs saved for this user in
-    tasks. The zip filename is retrieved from zip_names.
-    """
-    sender_id = event.sender_id  # Store sender_id in a variable
+    sender_id = event.sender_id
     if sender_id not in tasks:
         await event.respond('You must use /zip first.')
     elif not tasks[sender_id]:
@@ -120,15 +107,15 @@ async def zip_handler(event: MessageEvent):
     else:
         messages = await bot.get_messages(
             sender_id, ids=tasks[sender_id])
-        zip_size = sum([m.file.size for m in messages if m.file])  # Only sum sizes of messages with files
+        zip_size = sum([m.file.size for m in messages if m.file])
 
-        if zip_size > 1024 * 1024 * 2000:   # zip_size > 1.95 GB approximately
+        if zip_size > 1024 * 1024 * 2000:
             await event.respond('Total filesize must not exceed 2.0 GB.')
         else:
             root = STORAGE / f'{sender_id}/'
             os.makedirs(root, exist_ok=True)
-            zip_name = root / (zip_names[sender_id] + '.zip') # Use stored filename
-            zip_name_str = str(zip_name)  # Convert to string for compatibility
+            zip_name = root / (zip_names[sender_id] + '.zip')
+            zip_name_str = str(zip_name)
 
             total_files = len(messages)
             files_downloaded = 0
@@ -138,17 +125,17 @@ async def zip_handler(event: MessageEvent):
             progress_message_id = progress_message.id
 
             async def download_and_add_file(message, file_number, total_size):
-                nonlocal files_downloaded  # Allows modification of the outer scope variable
+                nonlocal files_downloaded
                 try:
                     if stop_download[sender_id]:
                         await bot.send_message(event.chat_id, "Download stopped by user.")
-                        return False # Stop processing if stop signal received
+                        return False
 
-                    file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, total_size) #changed arguments
+                    file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, total_size)
 
                     if file_path:
                         await get_running_loop().run_in_executor(
-                            None, partial(add_to_zip, zip_name_str, file_path))  # Pass string path
+                            None, partial(add_to_zip, zip_name_str, file_path))
                         files_downloaded += 1
 
                         return True
@@ -159,21 +146,20 @@ async def zip_handler(event: MessageEvent):
                      await bot.send_message(event.chat_id, f"Error processing file {file_number}/{total_files}: {e}")
                      return False
 
-            # Calculate the total size of all files before starting downloads
             total_size = sum(message.file.size for message in messages if message.file)
 
             download_tasks = [download_and_add_file(message, i + 1, total_size) for i, message in enumerate(messages)]
 
-            results = await asyncio.gather(*download_tasks) # Run downloads concurrently.
+            results = await asyncio.gather(*download_tasks)
 
             end_time = time.time()
             total_time = end_time - start_time
-            # Check if all downloads were successful
+
             if all(results):
                 await bot.edit_message(event.chat_id, progress_message_id, f"All files downloaded and zipped in {total_time:.2f} seconds.")
                  # Send the zipped file
                 try:
-                    await bot.send_file(event.chat_id, zip_name_str, caption="Done!") # Use send_file instead of respond
+                    await bot.send_file(event.chat_id, zip_name_str, caption="Done!")
                 except Exception as e:
                     await event.respond(f"Error sending zipped file: {e}")
             else:
@@ -181,23 +167,20 @@ async def zip_handler(event: MessageEvent):
 
             try:
                 await get_running_loop().run_in_executor(
-                    None, rmtree, str(root))  # rmtree expects a string path in linux based systems.
+                    None, rmtree, str(root))
             except Exception as e:
                 logging.error(f"Error deleting directory: {e}")
 
 
         tasks.pop(sender_id)
-        stop_download.pop(sender_id) #clean the flag
-        zip_names.pop(sender_id) # Clean the name
+        stop_download.pop(sender_id)
+        zip_names.pop(sender_id)
 
     raise StopPropagation
 
 
 @bot.on(NewMessage(pattern='/cancel'))
 async def cancel_handler(event: MessageEvent):
-    """
-    Cleans the list of tasks for the user.
-    """
     sender_id = event.sender_id
     try:
         tasks.pop(sender_id)
@@ -211,9 +194,6 @@ async def cancel_handler(event: MessageEvent):
 
 @bot.on(NewMessage(pattern='/stop'))
 async def stop_handler(event: MessageEvent):
-    """
-    Stops the downloading process but doesn't remove files from queue
-    """
     sender_id = event.sender_id
     if sender_id in stop_download:
         stop_download[sender_id] = True
@@ -224,4 +204,6 @@ async def stop_handler(event: MessageEvent):
 
 
 if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(send_start_message())
     bot.run_until_disconnected()

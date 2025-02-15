@@ -19,8 +19,9 @@ API_HASH = os.environ['API_HASH']
 BOT_TOKEN = os.environ['BOT_TOKEN']
 CONC_MAX = int(os.environ.get('CONC_MAX', 3))
 LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))
-WEB_PORT = int(os.environ.get('PORT', 8080))  # Koyeb provides PORT
-WEB_ROUTE = os.environ.get('WEB_ROUTE', '/')  # Route for web endpoint
+WEB_PORT = int(os.environ.get('PORT', 8080))
+WEB_ROUTE = os.environ.get('WEB_ROUTE', '/')
+
 STORAGE = Path('./files/')
 os.makedirs(STORAGE, exist_ok=True)
 
@@ -38,25 +39,23 @@ tasks: dict[int, list[int]] = {}
 stop_download: dict[int, bool] = {}
 zip_names: dict[int, str] = {}
 
-bot = TelegramClient(
-    'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
-).start(bot_token=BOT_TOKEN)
+bot = TelegramClient('quick-zip-bot', api_id=API_ID, api_hash=API_HASH)
 
-# --- Web Server ---
-async def handle_web_request(request):
-    """Handles web requests; returns a simple status message."""
-    return web.Response(text="Telegram Bot is running!")
+async def main():
+    await bot.start(bot_token=BOT_TOKEN)
 
-async def start_web_server():
-    """Starts the aiohttp web server."""
-    app = web.Application()
-    app.add_routes([web.get(WEB_ROUTE, handle_web_request)])
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', WEB_PORT)  # Listen on all interfaces
-    await site.start()
-    logging.info(f"Web server started on port {WEB_PORT} at route {WEB_ROUTE}")
+    # --- Web Server ---
+    async def handle_web_request(request):
+        return web.Response(text="Telegram Bot is running!")
 
+    async def start_web_server():
+        app = web.Application()
+        app.add_routes([web.get(WEB_ROUTE, handle_web_request)])
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', WEB_PORT)
+        await site.start()
+        logging.info(f"Web server started on port {WEB_PORT} at route {WEB_ROUTE}")
 # --- Telegram Bot ---
 async def send_start_message():
     if LOGS_CHANNEL:
@@ -213,10 +212,6 @@ async def stop_handler(event: MessageEvent):
     else:
         await event.respond("No active download to stop. Please use /zip first.")
     raise StopPropagation
-
-async def main():
-    """Main function to start both the bot and the web server."""
-    await asyncio.gather(send_start_message(), start_web_server(), bot.run_until_disconnected())
 
 if __name__ == '__main__':
     try:

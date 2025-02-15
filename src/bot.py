@@ -1,3 +1,4 @@
+
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
@@ -35,6 +36,8 @@ logging.basicConfig(
 
 # dict to keep track of tasks for every user
 tasks: dict[int, list[int]] = {}
+stop_download: dict[int, bool] = {} #track the stop process
+zip_names: dict[int, str] = {} # Track the zip name given by user
 
 bot = TelegramClient(
     'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
@@ -62,26 +65,30 @@ async def help_command_handler(event: MessageEvent):
         'Available commands:\n'
         '/start - Starts the bot and shows a welcome message.\n'
         '/help - Shows this help message.\n'
-        '/add - Notifies the bot that you are going to send files to be zipped.\n'
-        '/zip <filename> - Zips the files you sent after using /add.  Replace <filename> with the desired zip file name (without the .zip extension).\n'
-        '/cancel - Cancels the current zipping task and clears the file list.\n\n'
+        '/zip <filename> - Notifies the bot that you are going to send files to be zipped. Filename must be specified\n'
+        '/done -  Zips the files you sent after using /zip.\n'
+        '/cancel - Cancels the current zipping task and removes the files from the queue.\n'
+        '/stop - Stops the downloading process but does not remove files from queue\n\n'
         'Example usage:\n'
-        '1. /add\n'
+        '1. /zip my_archive\n'
         '2. Send the files you want to zip.\n'
-        '3. /zip my_archive\n\n'
+        '3. /done\n\n'
         'The bot will then create a file named `my_archive.zip` containing all the files you sent.'
     )
     raise StopPropagation
 
 
-@bot.on(NewMessage(pattern='/add'))
+@bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))
 async def start_task_handler(event: MessageEvent):
     """
     Notifies the bot that the user is going to send the media.
     """
-    tasks[event.sender_id] = []
+    sender_id = event.sender_id
+    tasks[sender_id] = []
+    stop_download[sender_id] = False # Initialize stop_download to false
+    zip_names[sender_id] = event.pattern_match['name'] # Store the filename
 
-    await event.respond('OK, send me some files.')
+    await event.respond('OK, send me some files. Use /done when finished.')
 
     raise StopPropagation
 
@@ -97,17 +104,19 @@ async def add_file_handler(event: MessageEvent):
     raise StopPropagation
 
 
-@bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))
+@bot.on(NewMessage(pattern='/done'))
 async def zip_handler(event: MessageEvent):
     """
     Zips the media of messages corresponding to the IDs saved for this user in
-    tasks. The zip filename must be provided in the command.
+    tasks. The zip filename is retrieved from zip_names.
     """
     sender_id = event.sender_id  # Store sender_id in a variable
     if sender_id not in tasks:
-        await event.respond('You must use /add first.')
+        await event.respond('You must use /zip first.')
     elif not tasks[sender_id]:
         await event.respond('You must send me some files first.')
+    elif sender_id not in zip_names:
+        await event.respond('Filename not specified. Use /zip <filename> first.')
     else:
         messages = await bot.get_messages(
             sender_id, ids=tasks[sender_id])
@@ -118,7 +127,7 @@ async def zip_handler(event: MessageEvent):
         else:
             root = STORAGE / f'{sender_id}/'
             os.makedirs(root, exist_ok=True)
-            zip_name = root / (event.pattern_match['name'] + '.zip')
+            zip_name = root / (zip_names[sender_id] + '.zip') # Use stored filename
             zip_name_str = str(zip_name)  # Convert to string for compatibility
 
             total_files = len(messages)
@@ -128,45 +137,58 @@ async def zip_handler(event: MessageEvent):
             progress_message = await event.respond("Starting download...")
             progress_message_id = progress_message.id
 
-            async def download_and_add_file(message, file_number):
+            async def download_and_add_file(message, file_number, total_size):
                 nonlocal files_downloaded  # Allows modification of the outer scope variable
                 try:
-                    file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number) #changed arguments
+                    if stop_download[sender_id]:
+                        await bot.send_message(event.chat_id, "Download stopped by user.")
+                        return False # Stop processing if stop signal received
+
+                    file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, total_size) #changed arguments
 
                     if file_path:
                         await get_running_loop().run_in_executor(
                             None, partial(add_to_zip, zip_name_str, file_path))  # Pass string path
                         files_downloaded += 1
-                        await bot.edit_message(
-                            event.chat_id, progress_message_id,
-                            f"Downloaded and added file {file_number}/{total_files}."
-                        )
+
+                        return True
                     else:
                         await bot.send_message(event.chat_id, f"Failed to download file {file_number}/{total_files}")
+                        return False
                 except Exception as e:
                      await bot.send_message(event.chat_id, f"Error processing file {file_number}/{total_files}: {e}")
+                     return False
 
-            download_tasks = [download_and_add_file(message, i + 1) for i, message in enumerate(messages)]
+            # Calculate the total size of all files before starting downloads
+            total_size = sum(message.file.size for message in messages if message.file)
 
-            await asyncio.gather(*download_tasks) # Run downloads concurrently.
+            download_tasks = [download_and_add_file(message, i + 1, total_size) for i, message in enumerate(messages)]
+
+            results = await asyncio.gather(*download_tasks) # Run downloads concurrently.
+
             end_time = time.time()
             total_time = end_time - start_time
-            await bot.edit_message(event.chat_id, progress_message_id, f"All files downloaded and zipped in {total_time:.2f} seconds.")
-
+            # Check if all downloads were successful
+            if all(results):
+                await bot.edit_message(event.chat_id, progress_message_id, f"All files downloaded and zipped in {total_time:.2f} seconds.")
+                 # Send the zipped file
+                try:
+                    await bot.send_file(event.chat_id, zip_name_str, caption="Done!") # Use send_file instead of respond
+                except Exception as e:
+                    await event.respond(f"Error sending zipped file: {e}")
+            else:
+                 await bot.edit_message(event.chat_id, progress_message_id, "Zipping process incomplete due to errors or user stop.")
 
             try:
-                await bot.send_file(event.chat_id, zip_name_str, caption="Done!") # Use send_file instead of respond
+                await get_running_loop().run_in_executor(
+                    None, rmtree, str(root))  # rmtree expects a string path in linux based systems.
             except Exception as e:
-                await event.respond(f"Error sending zipped file: {e}")
-            finally:
-                try:
-                    await get_running_loop().run_in_executor(
-                        None, rmtree, str(root))  # rmtree expects a string path in linux based systems.
-                except Exception as e:
-                    logging.error(f"Error deleting directory: {e}")
+                logging.error(f"Error deleting directory: {e}")
 
 
         tasks.pop(sender_id)
+        stop_download.pop(sender_id) #clean the flag
+        zip_names.pop(sender_id) # Clean the name
 
     raise StopPropagation
 
@@ -176,12 +198,28 @@ async def cancel_handler(event: MessageEvent):
     """
     Cleans the list of tasks for the user.
     """
+    sender_id = event.sender_id
     try:
-        tasks.pop(event.sender_id)
-        await event.respond('Canceled zip. For a new one, use /add.')
+        tasks.pop(sender_id)
+        stop_download.pop(sender_id)
+        zip_names.pop(sender_id)
+        await event.respond('Zipping task cancelled and files removed from queue. Use /zip for a new one.')
     except KeyError:
         await event.respond('No active zipping task to cancel.')
 
+    raise StopPropagation
+
+@bot.on(NewMessage(pattern='/stop'))
+async def stop_handler(event: MessageEvent):
+    """
+    Stops the downloading process but doesn't remove files from queue
+    """
+    sender_id = event.sender_id
+    if sender_id in stop_download:
+        stop_download[sender_id] = True
+        await event.respond("Stopping the download process...")
+    else:
+        await event.respond("No active download to stop. Please use /zip first.")
     raise StopPropagation
 
 

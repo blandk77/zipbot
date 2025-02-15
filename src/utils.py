@@ -1,58 +1,69 @@
-from typing import Iterator
-from asyncio import wait
-from asyncio.tasks import FIRST_COMPLETED
-from zipfile import ZipFile
+import asyncio
+import time
 from pathlib import Path
+from zipfile import ZipFile
 
-from telethon.tl.custom import Message
-
-
-async def download_files(
-    msgs: list[Message],
-    conc_max: int = 3,
-    root: Path | None = None
-) -> Iterator[Path]:
+async def download_files(message, root, bot, event, progress_message_id, total_files, file_number):
     """
-    Downloads the file if present for each message.
+    Downloads a single file with progress reporting.
 
     Args:
-        msgs: list of messages from where download the files.
-        conc_max: max amount of files to be downloaded concurrently.
-        root: root path where store file downloaded.
-    
+        message: The Telegram message containing the file.
+        root: The directory to save the file.
+        bot: The TelegramClient instance.
+        event: The NewMessage event.
+        progress_message_id: The ID of the message to update with progress.
+        total_files: The total number of files to download.
+        file_number: The current file number being downloaded.
+
     Returns:
-        Yields the path of every file that is downloaded.
+        The path to the downloaded file, or None on error.
     """
-    root = root or Path('./')
+    try:
+        file_path = root / message.file.name if message.file.name else root / str(message.id)
+        file_path_str = str(file_path) # Convert to string
+        start_time = time.time()
 
-    next_msg_index = 0
-    pending = set()
-    while next_msg_index < len(msgs) or pending:
-        # fill the pending set with tasks until reach conc_max
-        while len(pending) < conc_max and next_msg_index < len(msgs):
+        async def callback(downloaded, total):
+            nonlocal start_time
+            current_time = time.time()
+            time_taken = current_time - start_time
+            speed = downloaded / time_taken if time_taken > 0 else 0
+            speed_mbps = speed / (1024 * 1024)
+
+            progress_message = (
+                f"Downloading file {file_number}/{total_files}...\n"
+                f"Downloaded: {downloaded / (1024 * 1024):.2f} MB / {total / (1024 * 1024):.2f} MB\n"
+                f"Time taken: {time_taken:.2f} seconds\n"
+                f"Speed: {speed_mbps:.2f} MB/s"
+            )
             try:
-                m = msgs[next_msg_index]
-            except IndexError:
-                pass
-            else:
-                pending.add(m.download_media(file=root / (m.file.name or 'no_name')))
-                next_msg_index += 1
-        
-        if pending:
-            done, pending = await wait(pending, return_when=FIRST_COMPLETED)
+                await bot.edit_message(event.chat_id, progress_message_id, progress_message)
+            except Exception as e:
+                print(f"Error editing message: {e}")  # Log to console for debugging
+                return  # Stop downloading if the update fails.
 
-            if done and (path := await done.pop()) is not None:
-                yield Path(path)
+        await bot.download_media(message, file=file_path_str, progress_callback=callback)
+        return file_path
+    except Exception as e:
+        print(f"Error downloading file: {e}")
+        return None
 
 
-def add_to_zip(zip: Path, file: Path) -> None:
+def add_to_zip(zip_file_path, file_path):
     """
     Appends a file to a zip file.
 
     Args:
-        zip: the zip file path.
-        file: the path to the file that must be added.
+        zip_file_path: The path to the zip file.
+        file_path: The path to the file that must be added.
     """
-    flag = 'a' if zip.is_file() else 'x'
-    with ZipFile(zip, flag) as zfile:
-        zfile.write(file, file.name)
+    try:
+        file_path = Path(file_path)  # Ensure it's a Path object
+        zip_file_path = Path(zip_file_path)
+
+        flag = 'a' if zip_file_path.is_file() else 'x'
+        with ZipFile(zip_file_path, flag) as zfile:
+            zfile.write(file_path, file_path.name) # Add the file to the zip archive
+    except Exception as e:
+        print(f"Error adding to zip: {e}")

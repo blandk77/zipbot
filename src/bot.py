@@ -1,4 +1,3 @@
-
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
@@ -7,13 +6,10 @@ import logging
 import os
 import time
 import asyncio
-
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
-
-# Import for web server
 from aiohttp import web
 
 load_dotenv()

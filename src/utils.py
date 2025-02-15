@@ -13,7 +13,7 @@ async def download_files(message, root, bot, event, progress_message_id, total_f
             current_time = time.time()
             time_taken = current_time - start_dl_time
             speed = downloaded / time_taken if time_taken > 0 else 0
-            speed_mbps = speed / (1024 × 1024)
+            speed_mbps = speed / (1024 * 1024)
             remaining_files = total_files - file_number
 
             minutes = int((current_time - start_time) // 60)

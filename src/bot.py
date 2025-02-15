@@ -37,6 +37,36 @@ bot = TelegramClient(
     'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
 ).start(bot_token=BOT_TOKEN)
 
+@bot.on(NewMessage(pattern='/start'))
+async def start_command_handler(event: MessageEvent):
+    """
+    Handles the /start command.
+    """
+    await event.respond(
+        'Hello! I am a bot that can help you zip files from Telegram.\n'
+        'Use /help to see available commands.'
+    )
+    raise StopPropagation
+
+
+@bot.on(NewMessage(pattern='/help'))
+async def help_command_handler(event: MessageEvent):
+    """
+    Handles the /help command.
+    """
+    await event.respond(
+        'Available commands:\n'
+        '/start - Starts the bot and shows a welcome message.\n'
+        '/help - Shows this help message.\n'
+        '/add - Notifies the bot that you are going to send files to be zipped.\n'
+        '/zip <filename> - Zips the files you sent after using /add.  Replace <filename> with the desired zip file name (without the .zip extension).\n\n'
+        'Example usage:\n'
+        '1. /add\n'
+        '2. Send the files you want to zip.\n'
+        '3. /zip my_archive\n\n'
+        'The bot will then create a file named `my_archive.zip` containing all the files you sent.'
+    )
+    raise StopPropagation
 
 @bot.on(NewMessage(pattern='/add'))
 async def start_task_handler(event: MessageEvent):

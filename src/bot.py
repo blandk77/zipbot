@@ -242,12 +242,16 @@ async def add_premium_command_handler(event: MessageEvent):
 
 @bot.on(NewMessage(pattern='/broadcast (?P<message>.*)'))
 async def broadcast_command_handler(event: MessageEvent):
-     sender_id = event.sender_id
-     if sender_id == OWNER_ID:
+    sender_id = event.sender_id
+    if sender_id == OWNER_ID:
         broadcast_message = event.pattern_match['message']
-        all_users = user_collection.find({}) # Fetch all users from the database
+        logging.info(f"Owner {sender_id} is attempting to broadcast: {broadcast_message}")
+
+        all_users = user_collection.find({})  # Fetch all users from the database
         successful_broadcasts = 0
         failed_broadcasts = 0
+
+        total_users = await user_collection.count_documents({}) # Get the total count of users
 
         async for user in all_users:
             user_id = user["user_id"]
@@ -256,16 +260,19 @@ async def broadcast_command_handler(event: MessageEvent):
                 successful_broadcasts += 1
                 await asyncio.sleep(0.1)  # Avoid hitting flood limits
             except Exception as e:
-                logging.warning(f"Failed to send broadcast to user {user_id}: {e}")
+                logging.warning(f"Failed to send broadcast to user {user_id}: {e}. Error: {e}")
                 failed_broadcasts += 1
+            finally:
+                percentage_complete = (successful_broadcasts + failed_broadcasts) / total_users * 100
+                logging.info(f"Broadcast progress: {percentage_complete:.2f}% complete. Successful: {successful_broadcasts}, Failed: {failed_broadcasts}, Total: {total_users}")
 
         await event.respond(
-            f"Broadcast completed.\nSuccessful: {successful_broadcasts}\nFailed: {failed_broadcasts}"
+            f"Broadcast completed.\nSuccessful: {successful_broadcasts}\nFailed: {failed_broadcasts}\nTotal Users: {total_users}"
         )
-     else:
+        logging.info("Broadcast completed.")
+    else:
         await event.respond('You are not authorized to use this command.')
-     raise StopPropagation
-
+    raise StopPropagation
 
 @bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))
 async def start_task_handler(event: MessageEvent):

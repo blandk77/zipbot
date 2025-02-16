@@ -28,7 +28,7 @@ LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))  # Added logs channel
 STORAGE = Path('./files/')
 os.makedirs(STORAGE, exist_ok=True)
 MONGO_URL = os.environ['MONGO_URL']  # Make MONGO_URL required
-ADMIN_USER_ID = int(os.environ.get('ADMIN_USER_ID', 0))
+OWNER_ID = int(os.environ.get('OWNER_ID', 0)) # Renamed ADMIN_USER_ID to OWNER_ID and used get() with default
 PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
 DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
 PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
@@ -186,7 +186,8 @@ async def help_command_handler(event: MessageEvent):
         '/stop - Stops the downloading process but does not remove files from queue\n'
         '/myplan - Shows your current plan.\n'
         '/buy - Shows available premium plans.\n'
-        '/addpremium <user_id> - Adds premium to a user (Admin only).\n\n'
+        '/addpremium <user_id> - Adds premium to a user (Admin only).\n'
+        '/broadcast <message> - Broadcast a message to all users (Owner only).\n\n'
         'Example usage:\n'
         '1. /zip my_archive\n'
         '2. Send the files you want to zip.\n'
@@ -224,7 +225,7 @@ async def buy_command_handler(event: MessageEvent):
 @bot.on(NewMessage(pattern='/addpremium (?P<user_id>\d+)'))
 async def add_premium_command_handler(event: MessageEvent):
     sender_id = event.sender_id
-    if sender_id == ADMIN_USER_ID:
+    if sender_id == OWNER_ID: # Changed from ADMIN_USER_ID to OWNER_ID
         user_id = int(event.pattern_match['user_id'])
         try:
             user = await bot.get_entity(user_id)
@@ -239,6 +240,31 @@ async def add_premium_command_handler(event: MessageEvent):
     await event.respond('You are not authorized to use this command.')
     raise StopPropagation
 
+@bot.on(NewMessage(pattern='/broadcast (?P<message>.*)'))
+async def broadcast_command_handler(event: MessageEvent):
+     sender_id = event.sender_id
+     if sender_id == OWNER_ID:
+        broadcast_message = event.pattern_match['message']
+        all_users = user_collection.find({}) # Fetch all users from the database
+        successful_broadcasts = 0
+        failed_broadcasts = 0
+
+        async for user in all_users:
+            user_id = user["user_id"]
+            try:
+                await bot.send_message(user_id, broadcast_message)
+                successful_broadcasts += 1
+                await asyncio.sleep(0.1)  # Avoid hitting flood limits
+            except Exception as e:
+                logging.warning(f"Failed to send broadcast to user {user_id}: {e}")
+                failed_broadcasts += 1
+
+        await event.respond(
+            f"Broadcast completed.\nSuccessful: {successful_broadcasts}\nFailed: {failed_broadcasts}"
+        )
+     else:
+        await event.respond('You are not authorized to use this command.')
+     raise StopPropagation
 
 
 @bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))

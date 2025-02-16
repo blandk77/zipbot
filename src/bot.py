@@ -11,11 +11,13 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from telethon import TelegramClient
+from telethon import TelegramClient, functions, types
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
-
+from telethon.errors import FloodWait, UserIsBlocked, PeerIdInvalid, UserPrivacyRestricted, ChatAdminRequired
+from telethon.errors.users import UserDeactivated
 import pymongo
+
 from utils import download_files, add_to_zip #Imported functions
 
 load_dotenv()
@@ -54,7 +56,6 @@ download_semaphore = asyncio.Semaphore(CONC_MAX)  # Semaphore for download concu
 
 # Initialize Telegram client
 bot = TelegramClient('zipper', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-
 
 # Initialize MongoDB client
 try:
@@ -240,39 +241,75 @@ async def add_premium_command_handler(event: MessageEvent):
     await event.respond('You are not authorized to use this command.')
     raise StopPropagation
 
-@bot.on(NewMessage(pattern='/broadcast (?P<message>.*)'))
+
+async def send_msg(user_id: int, message: Message):
+    """Sends a message to a user, handling potential errors."""
+    try:
+        await bot.copy_message(chat_id=user_id, from_chat=message.chat.id, message_id=message.id)
+        return 200
+    except FloodWait as e:
+        logging.warning(f"FloodWait for user {user_id}: {e.seconds} seconds")
+        await asyncio.sleep(e.seconds)  # Wait for the specified time
+        return await send_msg(user_id, message) # Recursive call after waiting
+    except UserIsBlocked:
+        logging.info(f"User {user_id} has blocked the bot")
+        return 400
+    except PeerIdInvalid:
+        logging.warning(f"Peer ID invalid for user {user_id}")
+        return 400
+    except UserDeactivated:
+        logging.info(f"User {user_id} is deactivated")
+        return 400
+    except UserPrivacyRestricted:
+        logging.warning(f"PrivacyRestricted error for user {user_id}")
+        return 400
+    except ChatAdminRequired:
+        logging.warning(f"ChatAdminRequired error for user {user_id}")
+        return 400
+    except Exception as e:
+        logging.error(f"Failed to send message to user {user_id}: {e}")
+        return 500
+
+
+@bot.on(NewMessage(pattern='/broadcast') & filters.user(OWNER_ID) & filters.reply)
 async def broadcast_command_handler(event: MessageEvent):
-    sender_id = event.sender_id
-    if sender_id == OWNER_ID:
-        broadcast_message = event.pattern_match['message']
-        logging.info(f"Owner {sender_id} is attempting to broadcast: {broadcast_message}")
+    """Broadcasts a replied-to message to all users in the database."""
+    if not event.is_reply:
+        await event.respond("You must reply to a message to broadcast it.")
+        return
 
-        all_users = user_collection.find({})  # Fetch all users from the database
-        successful_broadcasts = 0
-        failed_broadcasts = 0
+    broadcast_msg = await event.get_reply_message()  # Get the message being replied to
+    logging.info(f"Owner {event.sender_id} is starting a broadcast.")
+    sts_msg = await event.reply_text("Broadcast Started..!")
 
-        total_users = await user_collection.count_documents({}) # Get the total count of users
+    done = 0
+    failed = 0
+    success = 0
+    start_time = time.time()
 
-        async for user in all_users:
-            user_id = user["user_id"]
-            try:
-                await bot.send_message(user_id, broadcast_message)
-                successful_broadcasts += 1
-                await asyncio.sleep(0.1)  # Avoid hitting flood limits
-            except Exception as e:
-                logging.warning(f"Failed to send broadcast to user {user_id}: {e}. Error: {e}")
-                failed_broadcasts += 1
-            finally:
-                percentage_complete = (successful_broadcasts + failed_broadcasts) / total_users * 100
-                logging.info(f"Broadcast progress: {percentage_complete:.2f}% complete. Successful: {successful_broadcasts}, Failed: {failed_broadcasts}, Total: {total_users}")
+    all_users = user_collection.find({})
+    total_users = await user_collection.count_documents({}) # Get the total count of users
+    logging.info(f"Total users found: {total_users}")
 
-        await event.respond(
-            f"Broadcast completed.\nSuccessful: {successful_broadcasts}\nFailed: {failed_broadcasts}\nTotal Users: {total_users}"
-        )
-        logging.info("Broadcast completed.")
-    else:
-        await event.respond('You are not authorized to use this command.')
+    async for user in all_users:
+        user_id = user["user_id"]
+        sts = await send_msg(user_id, broadcast_msg)
+
+        if sts == 200:
+            success += 1
+        else:
+            failed += 1
+
+        done += 1
+
+        if not done % 20:
+            await sts_msg.edit(f"**Broadcast In Progress:** \n\nTotal Users {total_users} \nCompleted: {done} / {total_users}\nSuccess: {success}\nFailed: {failed}")
+
+    completed_in = datetime.timedelta(seconds=int(time.time() - start_time))
+    await sts_msg.edit(f"**Broadcast Completed:** \n\nCompleted In `{completed_in}`.\n\nTotal Users {total_users}\nCompleted: {done} / {total_users}\nSuccess: {success}\nFailed: {failed}")
+    logging.info(f"Broadcast completed in {completed_in}. Success: {success}, Failed: {failed}, Total: {total_users}")
     raise StopPropagation
+
 
 @bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))
 async def start_task_handler(event: MessageEvent):

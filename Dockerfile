@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "src/bot.py" ]
+CMD gunicorn app:app & python3 src/bot.py

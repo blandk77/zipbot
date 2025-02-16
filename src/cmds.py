@@ -2,6 +2,7 @@
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
 import os
+import time
 
 MessageEvent = NewMessage.Event | Message
 

@@ -8,3 +8,4 @@ werkzeug==2.0.2
 itsdangerous==2.0.1
 pymongo
 pytz
+aiohttp

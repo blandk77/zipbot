@@ -299,13 +299,13 @@ async def zip_handler(event: MessageEvent):
             progress_message_id = progress_message.id
 
 
-            async def download_and_add_file(message, file_number, total_size, event, progress_message_id, start_time):
+            async def download_and_add_file(message, file_number, zip_size, event, progress_message_id, start_time): # Changed total_size to zip_size
                 try:
                     if stop_download[sender_id]:
                         await bot.send_message(event.chat_id, "Download stopped by user.")
                         return False
 
-                    file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, total_size)
+                    file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, zip_size) # Changed total_size to zip_size
 
                     if file_path:
                         await get_running_loop().run_in_executor(
@@ -321,7 +321,7 @@ async def zip_handler(event: MessageEvent):
                     return False
 
 
-            download_tasks = [download_and_add_file(message, i + 1, total_size, event, progress_message_id, start_time) for i, message in enumerate(messages)]
+            download_tasks = [download_and_add_file(message, i + 1, zip_size, event, progress_message_id, start_time) for i, message in enumerate(messages)] # Changed total_size to zip_size
 
             results = await asyncio.gather(*download_tasks)
 

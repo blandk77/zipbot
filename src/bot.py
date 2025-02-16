@@ -53,8 +53,8 @@ zip_names: dict[int, str] = {}
 # Initialize MongoDB client
 mongo_client = pymongo.MongoClient(MONGO_URL) if MONGO_URL else None
 db = mongo_client[DB_NAME] if mongo_client else None # Specify the database name
-premium_users_collection = db[PREMIUM_USERS_COLLECTION_NAME] if db else None #Specify the collection name
-usage_collection = db[USAGE_COLLECTION_NAME] if db else None # Collection for usage data
+premium_users_collection = db[PREMIUM_USERS_COLLECTION_NAME] if db is not None else None #Specify the collection name
+usage_collection = db[USAGE_COLLECTION_NAME] if db is not None else None # Collection for usage data
 
 # Check MongoDB connection and collections
 if mongo_client and db is None:

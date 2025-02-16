@@ -26,15 +26,15 @@ CONC_MAX = int(os.environ.get('CONC_MAX', 3))
 LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))  # Added logs channel
 STORAGE = Path('./files/')
 os.makedirs(STORAGE, exist_ok=True)
-MONGO_URL = os.environ.get('MONGO_URL')
+MONGO_URL = os.environ['MONGO_URL']  # Make MONGO_URL required
 ADMIN_USER_ID = int(os.environ.get('ADMIN_USER_ID', 0))
 PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
 DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
 PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
 UPI_DETAILS = os.environ.get('UPI_DETAILS', "your_upi_id@examplebank")
 DB_NAME = os.environ.get("DB_NAME", "telegram_zip_bot")
-PREMIUM_USERS_COLLECTION_NAME = os.environ.get("PREMIUM_USERS_COLLECTION_NAME", "premium_users")
-USAGE_COLLECTION_NAME = os.environ.get("USAGE_COLLECTION_NAME", "usage")
+COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "user_data") # Single collection name
+IS_PREMIUM = os.environ.get('IS_PREMIUM', 'False').lower() == 'true'  # Boolean premium mode
 
 MessageEvent = NewMessage.Event | Message
 
@@ -51,24 +51,16 @@ stop_download: dict[int, bool] = {}
 zip_names: dict[int, str] = {}
 
 # Initialize MongoDB client
-mongo_client = pymongo.MongoClient(MONGO_URL) if MONGO_URL else None
-db = mongo_client[DB_NAME] if mongo_client else None # Specify the database name
-premium_users_collection = db[PREMIUM_USERS_COLLECTION_NAME] if db is not None else None #Specify the collection name
-usage_collection = db[USAGE_COLLECTION_NAME] if db is not None else None # Collection for usage data
-
-# Check MongoDB connection and collections
-if mongo_client and db is None:
-    logging.error("Failed to access the specified database. Check DB_NAME in your environment variables.")
-if db and premium_users_collection is None:
-    logging.error("Failed to access the premium users collection. Check PREMIUM_USERS_COLLECTION_NAME.")
-if db and usage_collection is None:
-    logging.error("Failed to access the usage collection. Check USAGE_COLLECTION_NAME.")
-
-
-
-bot = TelegramClient(
-    'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
-).start(bot_token=BOT_TOKEN)
+try:
+    mongo_client = pymongo.MongoClient(MONGO_URL)
+    db = mongo_client[DB_NAME]  # Use the specified database name
+    user_collection = db[COLLECTION_NAME]  # Single collection for all data
+    logging.info("Connected to MongoDB")
+except Exception as e:
+    logging.error(f"Failed to connect to MongoDB: {e}")
+    mongo_client = None
+    db = None
+    user_collection = None
 
 
 async def send_start_message():
@@ -81,10 +73,10 @@ async def send_start_message():
 # MongoDB Functions
 async def is_premium_user(user_id: int) -> bool:
     """Checks if a user is a premium user."""
-    if not premium_users_collection:
+    if not IS_PREMIUM or not user_collection:  # Check IS_PREMIUM flag
         return False
     try:
-        user = premium_users_collection.find_one({'user_id': user_id})
+        user = user_collection.find_one({'user_id': user_id, 'is_premium': True})
         if user and user.get('expiry_date') and user['expiry_date'] > datetime.utcnow():
             return True
         return False
@@ -95,13 +87,13 @@ async def is_premium_user(user_id: int) -> bool:
 
 async def add_premium_user(user_id: int):
     """Adds a user to the premium users collection."""
-    if not premium_users_collection:
+    if not IS_PREMIUM or not user_collection:  # Check IS_PREMIUM flag
         return False
     try:
         expiry_date = datetime.utcnow() + timedelta(days=PREMIUM_DAYS)
-        premium_users_collection.update_one(
+        user_collection.update_one(
             {'user_id': user_id},
-            {'$set': {'expiry_date': expiry_date}},
+            {'$set': {'expiry_date': expiry_date, 'is_premium': True}},  # Add is_premium flag
             upsert=True
         )
         return True
@@ -111,7 +103,7 @@ async def add_premium_user(user_id: int):
 
 async def get_daily_usage(user_id: int) -> int:
     """Gets a user's current daily usage in bytes"""
-    if not usage_collection:
+    if not IS_PREMIUM or not user_collection:
         return 0
 
     try:
@@ -119,7 +111,7 @@ async def get_daily_usage(user_id: int) -> int:
         start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
         end_of_day = start_of_day + timedelta(days=1)
 
-        usage_data = usage_collection.find_one({
+        usage_data = user_collection.find_one({
             'user_id': user_id,
             'date': {'$gte': start_of_day, '$lt': end_of_day}
         })
@@ -132,7 +124,7 @@ async def get_daily_usage(user_id: int) -> int:
 
 async def set_daily_usage(user_id: int, usage: int):
     """Sets a user's current daily usage in bytes"""
-    if not usage_collection:
+    if not IS_PREMIUM or not user_collection:
         return
 
     try:
@@ -140,7 +132,7 @@ async def set_daily_usage(user_id: int, usage: int):
         start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
         end_of_day = start_of_day + timedelta(days=1)
 
-        usage_collection.update_one(
+        user_collection.update_one(
             {
                 'user_id': user_id,
                 'date': {'$gte': start_of_day, '$lt': end_of_day}
@@ -154,7 +146,7 @@ async def set_daily_usage(user_id: int, usage: int):
 
 async def check_daily_limit(user_id: int, file_size: int) -> bool:
     """Checks if a user has exceeded their daily limit."""
-    if await is_premium_user(user_id):
+    if IS_PREMIUM and await is_premium_user(user_id):
         return True
 
     daily_limit_bytes = DAILY_LIMIT_GB * 1024 * 1024 * 1024  # GB to bytes
@@ -203,7 +195,7 @@ async def myplan_command_handler(event: MessageEvent):
     is_premium = await is_premium_user(sender_id)
     if is_premium:
         try:
-            user = premium_users_collection.find_one({'user_id': sender_id})
+            user = user_collection.find_one({'user_id': sender_id})
             expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
             await event.respond(f'You are a premium user. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
         except Exception as e:
@@ -216,7 +208,10 @@ async def myplan_command_handler(event: MessageEvent):
 
 @bot.on(NewMessage(pattern='/buy'))
 async def buy_command_handler(event: MessageEvent):
-    await event.respond(f'{PAID_PLANS}\nPayment Details (UPI): {UPI_DETAILS}')
+    if IS_PREMIUM:
+        await event.respond(f'{PAID_PLANS}\nPayment Details (UPI): {UPI_DETAILS}')
+    else:
+        await event.respond('Premium plans are currently disabled.')
     raise StopPropagation
 
 
@@ -289,13 +284,19 @@ async def download_files(message: Message, root: Path, bot: TelegramClient, even
                 remaining_bytes = message.file.size - downloaded_bytes
                 estimated_remaining_time = remaining_bytes / (downloaded_bytes / elapsed_time) if downloaded_bytes > 0 else 0
 
+                # *** STATUS BAR BEGIN ***
                 status_message = (
-                    f"Downloading file {file_number}/{total_files}: {filename}\n"
-                    f"{percentage}% completed\n"
-                    f"Downloaded: {downloaded_size_mb:.2f} MB / {total_size_mb:.2f} MB\n"
-                    f"Speed: {speed_mbps:.2f} MB/s\n"
-                    f"Estimated time remaining: {estimated_remaining_time:.2f} seconds"
+                    f"✨ **Download Status** ⚙️\n"
+                    f"File: {filename} ({file_number}/{total_files})\n"  # Include filename
+                    f"Progress: [{'█' * (percentage // 10)}{'░' * (10 - percentage // 10)}] {percentage}%\n"  # Visual progress bar
+                    f"⬇️ Downloaded: {downloaded_size_mb:.2f} MB / {total_size_mb:.2f} MB\n"
+                    f"📶 Speed: {speed_mbps:.2f} MB/s\n"
+                    f"⏱️ ETA: {estimated_remaining_time:.2f} seconds\n"
+                    f"🛑 Use /stop to cancel"
+                    f"\n----------\n"
+                    f"👨‍💻 **Telegram Guy!!:** @The_TGguy 🚀"
                 )
+                # *** STATUS BAR END ***
 
                 try:
                     await bot.edit_message(event.chat_id, progress_message_id, status_message)

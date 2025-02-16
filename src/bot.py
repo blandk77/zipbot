@@ -164,7 +164,7 @@ async def check_daily_limit(user_id: int, file_size: int) -> bool:
 
 
 if __name__ == '__main__':
-    register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging, is_premium_user, add_premium_user, get_daily_usage, set_daily_usage, bot.get_entity, bot) #Added functions and get_entity and bot
+    register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging, is_premium_user, add_premium_user, get_daily_usage, set_daily_usage, bot.get_entity) #Added functions and get_entity and bot
     loop = asyncio.get_event_loop()
     loop.run_until_complete(send_start_message())
     bot.run_until_disconnected()

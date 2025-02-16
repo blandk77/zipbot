@@ -1,3 +1,4 @@
+
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
@@ -8,10 +9,12 @@ import time
 import asyncio
 import zipfile
 from datetime import datetime, timedelta, timezone
+
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
+
 import pymongo
 
 load_dotenv()
@@ -53,6 +56,15 @@ db = mongo_client[DB_NAME] if mongo_client else None # Specify the database name
 premium_users_collection = db[PREMIUM_USERS_COLLECTION_NAME] if db else None #Specify the collection name
 usage_collection = db[USAGE_COLLECTION_NAME] if db else None # Collection for usage data
 
+# Check MongoDB connection and collections
+if mongo_client and db is None:
+    logging.error("Failed to access the specified database. Check DB_NAME in your environment variables.")
+if db and premium_users_collection is None:
+    logging.error("Failed to access the premium users collection. Check PREMIUM_USERS_COLLECTION_NAME.")
+if db and usage_collection is None:
+    logging.error("Failed to access the usage collection. Check USAGE_COLLECTION_NAME.")
+
+
 
 bot = TelegramClient(
     'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
@@ -71,39 +83,51 @@ async def is_premium_user(user_id: int) -> bool:
     """Checks if a user is a premium user."""
     if not premium_users_collection:
         return False
-    user = premium_users_collection.find_one({'user_id': user_id})
-    if user and user.get('expiry_date') and user['expiry_date'] > datetime.utcnow():
-        return True
-    return False
+    try:
+        user = premium_users_collection.find_one({'user_id': user_id})
+        if user and user.get('expiry_date') and user['expiry_date'] > datetime.utcnow():
+            return True
+        return False
+    except Exception as e:
+        logging.error(f"Error checking premium user: {e}")
+        return False
 
 
 async def add_premium_user(user_id: int):
     """Adds a user to the premium users collection."""
     if not premium_users_collection:
         return False
-    expiry_date = datetime.utcnow() + timedelta(days=PREMIUM_DAYS)
-    premium_users_collection.update_one(
-        {'user_id': user_id},
-        {'$set': {'expiry_date': expiry_date}},
-        upsert=True
-    )
-    return True
+    try:
+        expiry_date = datetime.utcnow() + timedelta(days=PREMIUM_DAYS)
+        premium_users_collection.update_one(
+            {'user_id': user_id},
+            {'$set': {'expiry_date': expiry_date}},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        logging.error(f"Error adding premium user: {e}")
+        return False
 
 async def get_daily_usage(user_id: int) -> int:
     """Gets a user's current daily usage in bytes"""
     if not usage_collection:
         return 0
 
-    today = datetime.utcnow().date()
-    start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
-    end_of_day = start_of_day + timedelta(days=1)
+    try:
+        today = datetime.utcnow().date()
+        start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+        end_of_day = start_of_day + timedelta(days=1)
 
-    usage_data = usage_collection.find_one({
-        'user_id': user_id,
-        'date': {'$gte': start_of_day, '$lt': end_of_day}
-    })
+        usage_data = usage_collection.find_one({
+            'user_id': user_id,
+            'date': {'$gte': start_of_day, '$lt': end_of_day}
+        })
 
-    return usage_data.get('usage', 0) if usage_data else 0
+        return usage_data.get('usage', 0) if usage_data else 0
+    except Exception as e:
+        logging.error(f"Error getting daily usage: {e}")
+        return 0
 
 
 async def set_daily_usage(user_id: int, usage: int):
@@ -111,18 +135,21 @@ async def set_daily_usage(user_id: int, usage: int):
     if not usage_collection:
         return
 
-    today = datetime.utcnow().date()
-    start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
-    end_of_day = start_of_day + timedelta(days=1)
+    try:
+        today = datetime.utcnow().date()
+        start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+        end_of_day = start_of_day + timedelta(days=1)
 
-    usage_collection.update_one(
-        {
-            'user_id': user_id,
-            'date': {'$gte': start_of_day, '$lt': end_of_day}
-        },
-        {'$set': {'usage': usage, 'user_id': user_id, 'date': start_of_day}},
-        upsert=True
-    )
+        usage_collection.update_one(
+            {
+                'user_id': user_id,
+                'date': {'$gte': start_of_day, '$lt': end_of_day}
+            },
+            {'$set': {'usage': usage, 'user_id': user_id, 'date': start_of_day}},
+            upsert=True
+        )
+    except Exception as e:
+        logging.error(f"Error setting daily usage: {e}")
 
 
 async def check_daily_limit(user_id: int, file_size: int) -> bool:
@@ -175,9 +202,13 @@ async def myplan_command_handler(event: MessageEvent):
     sender_id = event.sender_id
     is_premium = await is_premium_user(sender_id)
     if is_premium:
-        user = premium_users_collection.find_one({'user_id': sender_id})
-        expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
-        await event.respond(f'You are a premium user. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
+        try:
+            user = premium_users_collection.find_one({'user_id': sender_id})
+            expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
+            await event.respond(f'You are a premium user. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
+        except Exception as e:
+            logging.error(f"Error displaying premium plan: {e}")
+            await event.respond("Error fetching your premium plan details.")
     else:
         await event.respond(f'You are a free user. Your daily limit is {DAILY_LIMIT_GB} GB.')
     raise StopPropagation
@@ -203,8 +234,8 @@ async def add_premium_command_handler(event: MessageEvent):
             await event.respond(f'{username} got premium enabled for {PREMIUM_DAYS} days.')
         else:
             await event.respond('Failed to add premium user (database error).')
-    else:
-        await event.respond('You are not authorized to use this command.')
+        return #Early return to avoid error in non-admin.
+    await event.respond('You are not authorized to use this command.')
     raise StopPropagation
 
 

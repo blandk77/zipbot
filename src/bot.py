@@ -9,13 +9,12 @@ import time
 import asyncio
 import zipfile
 from datetime import datetime, timedelta, timezone
-
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
-
 import pymongo
+from utils import download_files, add_to_zip #Imported functions
 
 load_dotenv()
 
@@ -49,6 +48,11 @@ logging.basicConfig(
 tasks: dict[int, list[int]] = {}
 stop_download: dict[int, bool] = {}
 zip_names: dict[int, str] = {}
+download_semaphore = asyncio.Semaphore(CONC_MAX)  # Semaphore for download concurrency
+
+# Initialize Telegram client
+bot = TelegramClient('zipper', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+
 
 # Initialize MongoDB client
 try:
@@ -261,66 +265,6 @@ async def add_file_handler(event: MessageEvent):
     raise StopPropagation
 
 
-async def download_files(message: Message, root: Path, bot: TelegramClient, event: MessageEvent, progress_message_id: int, total_files: int, file_number: int, start_time: float, total_size: int):
-    """Downloads a file and returns its path."""
-    try:
-        filename = message.file.name or f'file_{file_number}'
-        file_path = root / filename
-        file_path_str = str(file_path)
-        downloaded_bytes = 0
-        previous_percentage = 0
-
-        async def callback(current: int):
-            nonlocal downloaded_bytes, previous_percentage
-            downloaded_bytes = current
-            percentage = min(int((downloaded_bytes / message.file.size) * 100), 100)  # Ensure percentage doesn't exceed 100
-
-            if percentage > previous_percentage:
-                elapsed_time = time.time() - start_time
-                downloaded_size_mb = downloaded_bytes / (1024 * 1024)
-                total_size_mb = total_size / (1024 * 1024)
-                speed_mbps = downloaded_size_mb / elapsed_time if elapsed_time > 0 else 0
-
-                remaining_bytes = message.file.size - downloaded_bytes
-                estimated_remaining_time = remaining_bytes / (downloaded_bytes / elapsed_time) if downloaded_bytes > 0 else 0
-
-                # *** STATUS BAR BEGIN ***
-                status_message = (
-                    f"✨ **Download Status** ⚙️\n"
-                    f"File: {filename} ({file_number}/{total_files})\n"  # Include filename
-                    f"Progress: [{'█' * (percentage // 10)}{'░' * (10 - percentage // 10)}] {percentage}%\n"  # Visual progress bar
-                    f"⬇️ Downloaded: {downloaded_size_mb:.2f} MB / {total_size_mb:.2f} MB\n"
-                    f"📶 Speed: {speed_mbps:.2f} MB/s\n"
-                    f"⏱️ ETA: {estimated_remaining_time:.2f} seconds\n"
-                    f"🛑 Use /stop to cancel"
-                    f"\n----------\n"
-                    f"👨‍💻 **Telegram Guy!!:** @The_TGguy 🚀"
-                )
-                # *** STATUS BAR END ***
-
-                try:
-                    await bot.edit_message(event.chat_id, progress_message_id, status_message)
-                except Exception as e:
-                    logging.warning(f"Failed to edit message: {e}")
-
-                previous_percentage = percentage
-
-        await bot.download_media(message, file=file_path_str, progress_callback=callback)
-        return file_path_str
-    except Exception as e:
-        logging.error(f"Error downloading file: {e}")
-        return None
-
-
-def add_to_zip(zip_name: str, file_path: str):
-    """Adds a file to a zip archive."""
-    try:
-        with zipfile.ZipFile(zip_name, 'a', zipfile.ZIP_DEFLATED) as zipf:
-            zipf.write(file_path, os.path.basename(file_path))
-    except Exception as e:
-        logging.error(f"Error adding file to zip: {e}")
-
-
 
 @bot.on(NewMessage(pattern='/done'))
 async def zip_handler(event: MessageEvent):
@@ -351,8 +295,8 @@ async def zip_handler(event: MessageEvent):
             progress_message = await event.respond("Starting download...")
             progress_message_id = progress_message.id
 
-            async def download_and_add_file(message, file_number, total_size):
-                nonlocal files_downloaded
+
+            async def download_and_add_file(message, file_number, total_size, event, progress_message_id, start_time):
                 try:
                     if stop_download[sender_id]:
                         await bot.send_message(event.chat_id, "Download stopped by user.")
@@ -363,19 +307,18 @@ async def zip_handler(event: MessageEvent):
                     if file_path:
                         await get_running_loop().run_in_executor(
                             None, partial(add_to_zip, zip_name_str, file_path))
+                        nonlocal files_downloaded
                         files_downloaded += 1
-
                         return True
                     else:
-                        await bot.send_message(event.chat_id, f"Failed to download file {file_number}/{total_files}")
+                        await bot.send_message(event.chat_id, "Failed to download file")
                         return False
                 except Exception as e:
-                     await bot.send_message(event.chat_id, f"Error processing file {file_number}/{total_files}: {e}")
-                     return False
+                    await bot.send_message(event.chat_id, f"Error processing file: {e}")
+                    return False
 
-            total_size = sum(message.file.size for message in messages if message.file)
 
-            download_tasks = [download_and_add_file(message, i + 1, total_size) for i, message in enumerate(messages)]
+            download_tasks = [download_and_add_file(message, i + 1, total_size, event, progress_message_id, start_time) for i, message in enumerate(messages)]
 
             results = await asyncio.gather(*download_tasks)
 
@@ -383,21 +326,20 @@ async def zip_handler(event: MessageEvent):
             total_time = end_time - start_time
 
             if all(results):
-                await bot.edit_message(event.chat_id, progress_message_id, f"All files downloaded and zipped in {total_time:.2f} seconds.")
+                await bot.send_message(event.chat_id, f"All files downloaded and zipped in {total_time:.2f} seconds.")
                  # Send the zipped file
                 try:
                     await bot.send_file(event.chat_id, zip_name_str, caption="Done!")
                 except Exception as e:
                     await event.respond(f"Error sending zipped file: {e}")
             else:
-                 await bot.edit_message(event.chat_id, progress_message_id, "Zipping process incomplete due to errors or user stop.")
+                 await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop.")
 
             try:
                 await get_running_loop().run_in_executor(
                     None, rmtree, str(root))
             except Exception as e:
                 logging.error(f"Error deleting directory: {e}")
-
 
         tasks.pop(sender_id)
         stop_download.pop(sender_id)

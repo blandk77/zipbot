@@ -7,7 +7,7 @@ import logging
 import os
 import time
 import asyncio
-
+from utils import download_files, add_to_zip
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation

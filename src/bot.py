@@ -1,3 +1,4 @@
+
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
@@ -6,14 +7,14 @@ import logging
 import os
 import time
 import asyncio
-from datetime import datetime, timedelta
-import pytz 
+import zipfile
+from datetime import datetime, timedelta, timezone
+
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
-from aiohttp import web
-from utils import download_files, add_to_zip
+
 import pymongo
 
 load_dotenv()
@@ -22,18 +23,16 @@ API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
 BOT_TOKEN = os.environ['BOT_TOKEN']
 CONC_MAX = int(os.environ.get('CONC_MAX', 3))
-LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))
-WEB_PORT = int(os.environ.get('PORT', 8080))
-WEB_ROUTE = os.environ.get('WEB_ROUTE', '/')
+LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))  # Added logs channel
 STORAGE = Path('./files/')
 os.makedirs(STORAGE, exist_ok=True)
+MONGO_URL = os.environ.get('MONGO_URL')
+ADMIN_USER_ID = int(os.environ.get('ADMIN_USER_ID', 0))
 PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
 DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
 PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
 UPI_DETAILS = os.environ.get('UPI_DETAILS', "your_upi_id@examplebank")
-MONGO_URL = os.environ.get("MONGO_URL")
-DATABASE_NAME = "TG-zip_bot"
-USER_COLLECTION = "Details"
+
 
 MessageEvent = NewMessage.Event | Message
 
@@ -50,100 +49,71 @@ stop_download: dict[int, bool] = {}
 zip_names: dict[int, str] = {}
 
 # Initialize MongoDB client
-mongo_client = pymongo.MongoClient(MONGO_URL)
-db = mongo_client[DATABASE_NAME]
-users_collection = db[USER_COLLECTION]
+mongo_client = pymongo.MongoClient(MONGO_URL) if MONGO_URL else None
+db = mongo_client.get_default_database() if mongo_client else None
+premium_users_collection = db.premium_users if db else None
+
 
 bot = TelegramClient(
     'quick-zip-bot', api_id=API_ID, api_hash=API_HASH
 ).start(bot_token=BOT_TOKEN)
 
-# --- Helper Functions ---
-def get_ist_time():
-    """Gets the current time in Indian Standard Time (IST)."""
-    ist = pytz.timezone('Asia/Kolkata')
-    return datetime.now(ist)
 
-def get_daily_reset_time():
-    """Gets the next daily reset time (12 AM IST)."""
-    now_ist = get_ist_time()
-    tomorrow_ist = now_ist + timedelta(days=1)
-    reset_time_ist = datetime(tomorrow_ist.year, tomorrow_ist.month, tomorrow_ist.day, 0, 0, 0, tzinfo=pytz.timezone('Asia/Kolkata'))
-    return reset_time_ist
-
-def get_user_data(user_id):
-    """Retrieves user data from MongoDB."""
-    user = users_collection.find_one({"user_id": user_id})
-    if not user:
-        user = {
-            "user_id": user_id,
-            "is_premium": False,
-            "premium_expiry": None,  # Store premium expiry time
-            "daily_usage": 0,
-            "last_reset": None  # Store last reset time
-        }
-        users_collection.insert_one(user)
-    return user
-
-def update_user_data(user_id, data):
-    """Updates user data in MongoDB."""
-    users_collection.update_one({"user_id": user_id}, {"$set": data}, upsert=True)
-
-def is_premium_user(user_id):
-    """Checks if a user is a premium user and if their premium hasn't expired."""
-    user = get_user_data(user_id)
-    if user and user["is_premium"] and user["premium_expiry"] and user["premium_expiry"] > get_ist_time():
-        return True
-    return False
-
-def check_daily_limit(user_id, file_size_mb):
-    """Checks if the user has exceeded their daily download limit. Returns True if limit exceeded."""
-    user = get_user_data(user_id)
-    reset_time = user.get("last_reset")
-    if not reset_time or reset_time < get_ist_time().replace(hour=0, minute=0, second=0, microsecond=0):  #Check with 12 AM IST TIME
-         user["daily_usage"] = 0 # Reset the daily usage if it's a new day
-    if is_premium_user(user_id):
-        return False  # Premium users have no limit
-    daily_limit_bytes = DAILY_LIMIT_GB * 1024 * 1024 * 1024  # Convert GB to bytes
-    file_size_bytes = file_size_mb * 1024 * 1024  # Convert MB to bytes
-
-    if user["daily_usage"] + file_size_bytes > daily_limit_bytes:
-        return True
-    return False
-
-def update_daily_usage(user_id, file_size_mb):
-    """Updates the user's daily usage."""
-    user = get_user_data(user_id)
-    file_size_bytes = file_size_mb * 1024 * 1024  # Convert MB to bytes
-    reset_time = user.get("last_reset")
-    if not reset_time or reset_time < get_ist_time().replace(hour=0, minute=0, second=0, microsecond=0):  #Check with 12 AM IST TIME
-         user["daily_usage"] = 0 # Reset the daily usage if it's a new day
-
-    new_usage = user["daily_usage"] + file_size_bytes
-    update_user_data(user_id, {"daily_usage": new_usage, "last_reset": get_ist_time()})
-
-# --- Web Server ---
-async def handle_web_request(request):
-    """Handles web requests; returns a simple status message."""
-    return web.Response(text="Telegram Bot is running!")
-
-async def start_web_server():
-    """Starts the aiohttp web server."""
-    app = web.Application()
-    app.add_routes([web.get(WEB_ROUTE, handle_web_request)])
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', WEB_PORT)  # Listen on all interfaces
-    await site.start()
-    logging.info(f"Web server started on port {WEB_PORT} at route {WEB_ROUTE}")
-
-# --- Telegram Bot ---
 async def send_start_message():
     if LOGS_CHANNEL:
         try:
             await bot.send_message(LOGS_CHANNEL, "Bot started/restarted!")
         except Exception as e:
             logging.error(f"Failed to send start message to logs channel: {e}")
+
+# MongoDB Functions
+async def is_premium_user(user_id: int) -> bool:
+    """Checks if a user is a premium user."""
+    if not premium_users_collection:
+        return False
+    user = premium_users_collection.find_one({'user_id': user_id})
+    if user and user.get('expiry_date') and user['expiry_date'] > datetime.utcnow():
+        return True
+    return False
+
+
+async def add_premium_user(user_id: int):
+    """Adds a user to the premium users collection."""
+    if not premium_users_collection:
+        return False
+    expiry_date = datetime.utcnow() + timedelta(days=PREMIUM_DAYS)
+    premium_users_collection.update_one(
+        {'user_id': user_id},
+        {'$set': {'expiry_date': expiry_date}},
+        upsert=True
+    )
+    return True
+
+async def get_daily_usage(user_id: int) -> int:
+    """Gets a user's current daily usage in bytes"""
+    # Not implemented persistence, replace with actual db lookup
+    return 0
+
+async def set_daily_usage(user_id: int, usage: int):
+    """Sets a user's current daily usage in bytes"""
+    # Not implemented persistence, replace with actual db save
+    pass
+
+
+async def check_daily_limit(user_id: int, file_size: int) -> bool:
+    """Checks if a user has exceeded their daily limit."""
+    if await is_premium_user(user_id):
+        return True
+
+    daily_limit_bytes = DAILY_LIMIT_GB * 1024 * 1024 * 1024  # GB to bytes
+    current_usage = await get_daily_usage(user_id)
+
+    if current_usage + file_size <= daily_limit_bytes:
+        await set_daily_usage(user_id, current_usage + file_size)
+        return True
+    else:
+        return False
+
 
 @bot.on(NewMessage(pattern='/start'))
 async def start_command_handler(event: MessageEvent):
@@ -152,6 +122,7 @@ async def start_command_handler(event: MessageEvent):
         'Use /help to see available commands.'
     )
     raise StopPropagation
+
 
 @bot.on(NewMessage(pattern='/help'))
 async def help_command_handler(event: MessageEvent):
@@ -164,8 +135,8 @@ async def help_command_handler(event: MessageEvent):
         '/cancel - Cancels the current zipping task and removes the files from the queue.\n'
         '/stop - Stops the downloading process but does not remove files from queue\n'
         '/myplan - Shows your current plan.\n'
-        '/buy - Shows paid plans and payment details.\n'
-        '/addpremium <user_id> - (Admin only) Adds premium to a user for 28 days.\n\n'
+        '/buy - Shows available premium plans.\n'
+        '/addpremium <user_id> - Adds premium to a user (Admin only).\n\n'
         'Example usage:\n'
         '1. /zip my_archive\n'
         '2. Send the files you want to zip.\n'
@@ -176,43 +147,42 @@ async def help_command_handler(event: MessageEvent):
 
 @bot.on(NewMessage(pattern='/myplan'))
 async def myplan_command_handler(event: MessageEvent):
-    user_id = event.sender_id
-    user = get_user_data(user_id)
-    if is_premium_user(user_id):
-        expiry = user["premium_expiry"].strftime("%Y-%m-%d %H:%M:%S %Z%z")
-        await event.respond(f"Your current plan is Premium. Expires on: {expiry}")
+    sender_id = event.sender_id
+    is_premium = await is_premium_user(sender_id)
+    if is_premium:
+        user = premium_users_collection.find_one({'user_id': sender_id})
+        expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
+        await event.respond(f'You are a premium user. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
     else:
-        await event.respond("Your current plan is Free.")
+        await event.respond(f'You are a free user. Your daily limit is {DAILY_LIMIT_GB} GB.')
     raise StopPropagation
+
 
 @bot.on(NewMessage(pattern='/buy'))
 async def buy_command_handler(event: MessageEvent):
-    await event.respond(f"Paid Plans:\n{PAID_PLANS}\n\nPayment Details (UPI):\n{UPI_DETAILS}")
+    await event.respond(f'{PAID_PLANS}\nPayment Details (UPI): {UPI_DETAILS}')
     raise StopPropagation
+
 
 @bot.on(NewMessage(pattern='/addpremium (?P<user_id>\d+)'))
-async def addpremium_command_handler(event: MessageEvent):
-    # Basic admin check (replace with a proper admin check if needed)
-    admin_user_id = int(os.environ.get('ADMIN_USER_ID', 0))  # Get admin user ID from env
-    if event.sender_id != admin_user_id:
-        await event.respond("You are not authorized to use this command.")
-        return
-    try:
+async def add_premium_command_handler(event: MessageEvent):
+    sender_id = event.sender_id
+    if sender_id == ADMIN_USER_ID:
         user_id = int(event.pattern_match['user_id'])
-        expiry_date = get_ist_time() + timedelta(days=PREMIUM_DAYS)
-        update_user_data(user_id, {"is_premium": True, "premium_expiry": expiry_date})
-        username = (await bot.get_entity(user_id)).username #Getting username of id, it may return NONE
-        if username:
-            await event.respond(f"@{username} ({user_id}) got premium enabled for {PREMIUM_DAYS} days. Expiry: {expiry_date.strftime('%Y-%m-%d %H:%M:%S %Z%z')}")
+        try:
+            user = await bot.get_entity(user_id)
+            username = user.username or user.first_name
+        except Exception:
+            username = str(user_id)  # If can't fetch user, just use ID string
+        if await add_premium_user(user_id):
+            await event.respond(f'{username} got premium enabled for {PREMIUM_DAYS} days.')
         else:
-             await event.respond(f"{user_id} got premium enabled for {PREMIUM_DAYS} days. Expiry: {expiry_date.strftime('%Y-%m-%d %H:%M:%S %Z%z')}")
-
-    except ValueError:
-        await event.respond("Invalid user ID. Please provide a valid integer user ID.")
-    except Exception as e:
-        await event.respond(f"An error occurred: {e}")
-
+            await event.respond('Failed to add premium user (database error).')
+    else:
+        await event.respond('You are not authorized to use this command.')
     raise StopPropagation
+
+
 
 @bot.on(NewMessage(pattern='/zip (?P<name>\w+)'))
 async def start_task_handler(event: MessageEvent):
@@ -225,11 +195,75 @@ async def start_task_handler(event: MessageEvent):
 
     raise StopPropagation
 
+
 @bot.on(NewMessage(
     func=lambda e: e.sender_id in tasks and e.file is not None))
 async def add_file_handler(event: MessageEvent):
+    sender_id = event.sender_id
+    file_size = event.file.size
+
+    if not await check_daily_limit(sender_id, file_size):
+        await event.respond(f"Sorry, you have exceeded your daily limit of {DAILY_LIMIT_GB} GB. Use /buy to upgrade to premium.", reply_to=event.id)
+        return
+
     tasks[event.sender_id].append(event.id)
     raise StopPropagation
+
+
+async def download_files(message: Message, root: Path, bot: TelegramClient, event: MessageEvent, progress_message_id: int, total_files: int, file_number: int, start_time: float, total_size: int):
+    """Downloads a file and returns its path."""
+    try:
+        filename = message.file.name or f'file_{file_number}'
+        file_path = root / filename
+        file_path_str = str(file_path)
+        downloaded_bytes = 0
+        previous_percentage = 0
+
+        async def callback(current: int):
+            nonlocal downloaded_bytes, previous_percentage
+            downloaded_bytes = current
+            percentage = min(int((downloaded_bytes / message.file.size) * 100), 100)  # Ensure percentage doesn't exceed 100
+
+            if percentage > previous_percentage:
+                elapsed_time = time.time() - start_time
+                downloaded_size_mb = downloaded_bytes / (1024 * 1024)
+                total_size_mb = total_size / (1024 * 1024)
+                speed_mbps = downloaded_size_mb / elapsed_time if elapsed_time > 0 else 0
+
+                remaining_bytes = message.file.size - downloaded_bytes
+                estimated_remaining_time = remaining_bytes / (downloaded_bytes / elapsed_time) if downloaded_bytes > 0 else 0
+
+                status_message = (
+                    f"Downloading file {file_number}/{total_files}: {filename}\n"
+                    f"{percentage}% completed\n"
+                    f"Downloaded: {downloaded_size_mb:.2f} MB / {total_size_mb:.2f} MB\n"
+                    f"Speed: {speed_mbps:.2f} MB/s\n"
+                    f"Estimated time remaining: {estimated_remaining_time:.2f} seconds"
+                )
+
+                try:
+                    await bot.edit_message(event.chat_id, progress_message_id, status_message)
+                except Exception as e:
+                    logging.warning(f"Failed to edit message: {e}")
+
+                previous_percentage = percentage
+
+        await bot.download_media(message, file=file_path_str, progress_callback=callback)
+        return file_path_str
+    except Exception as e:
+        logging.error(f"Error downloading file: {e}")
+        return None
+
+
+def add_to_zip(zip_name: str, file_path: str):
+    """Adds a file to a zip archive."""
+    try:
+        with zipfile.ZipFile(zip_name, 'a', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(file_path, os.path.basename(file_path))
+    except Exception as e:
+        logging.error(f"Error adding file to zip: {e}")
+
+
 
 @bot.on(NewMessage(pattern='/done'))
 async def zip_handler(event: MessageEvent):
@@ -243,13 +277,6 @@ async def zip_handler(event: MessageEvent):
     else:
         messages = await bot.get_messages(
             sender_id, ids=tasks[sender_id])
-
-        total_size_mb = sum((m.file.size / (1024 * 1024)) for m in messages if m.file)
-
-        if check_daily_limit(sender_id, total_size_mb):
-            await event.respond(f"You have exceeded your daily limit of {DAILY_LIMIT_GB} GB. Please try again tomorrow or upgrade to premium using /buy.")
-            return
-
         zip_size = sum([m.file.size for m in messages if m.file])
 
         if zip_size > 1024 * 1024 * 2000:
@@ -274,18 +301,12 @@ async def zip_handler(event: MessageEvent):
                         await bot.send_message(event.chat_id, "Download stopped by user.")
                         return False
 
-                    file_size_mb = message.file.size / (1024 * 1024) # Get single file size
-                    if check_daily_limit(sender_id, file_size_mb):
-                        await bot.send_message(event.chat_id, f"Download stopped! You have exceeded your daily limit of {DAILY_LIMIT_GB} GB. Please try again tomorrow or upgrade to premium using /buy.")
-                        return False
-
                     file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, total_size)
 
                     if file_path:
                         await get_running_loop().run_in_executor(
                             None, partial(add_to_zip, zip_name_str, file_path))
                         files_downloaded += 1
-                        update_daily_usage(sender_id, file_size_mb) #Updating single file
 
                         return True
                     else:
@@ -327,6 +348,7 @@ async def zip_handler(event: MessageEvent):
 
     raise StopPropagation
 
+
 @bot.on(NewMessage(pattern='/cancel'))
 async def cancel_handler(event: MessageEvent):
     sender_id = event.sender_id
@@ -350,12 +372,8 @@ async def stop_handler(event: MessageEvent):
         await event.respond("No active download to stop. Please use /zip first.")
     raise StopPropagation
 
-async def main():
-    """Main function to start both the bot and the web server."""
-    await asyncio.gather(send_start_message(), start_web_server(), bot.run_until_disconnected())
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(send_start_message())
+    bot.run_until_disconnected()

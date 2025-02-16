@@ -1,4 +1,3 @@
-
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
@@ -9,12 +8,10 @@ import time
 import asyncio
 import zipfile
 from datetime import datetime, timedelta, timezone
-
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
-
 import pymongo
 
 load_dotenv()
@@ -32,7 +29,9 @@ PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
 DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
 PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
 UPI_DETAILS = os.environ.get('UPI_DETAILS', "your_upi_id@examplebank")
-
+DB_NAME = os.environ.get("DB_NAME", "telegram_zip_bot")
+PREMIUM_USERS_COLLECTION_NAME = os.environ.get("PREMIUM_USERS_COLLECTION_NAME", "premium_users")
+USAGE_COLLECTION_NAME = os.environ.get("USAGE_COLLECTION_NAME", "usage")
 
 MessageEvent = NewMessage.Event | Message
 
@@ -50,8 +49,9 @@ zip_names: dict[int, str] = {}
 
 # Initialize MongoDB client
 mongo_client = pymongo.MongoClient(MONGO_URL) if MONGO_URL else None
-db = mongo_client.get_default_database() if mongo_client else None
-premium_users_collection = db.premium_users if db else None
+db = mongo_client[DB_NAME] if mongo_client else None # Specify the database name
+premium_users_collection = db[PREMIUM_USERS_COLLECTION_NAME] if db else None #Specify the collection name
+usage_collection = db[USAGE_COLLECTION_NAME] if db else None # Collection for usage data
 
 
 bot = TelegramClient(
@@ -91,13 +91,38 @@ async def add_premium_user(user_id: int):
 
 async def get_daily_usage(user_id: int) -> int:
     """Gets a user's current daily usage in bytes"""
-    # Not implemented persistence, replace with actual db lookup
-    return 0
+    if not usage_collection:
+        return 0
+
+    today = datetime.utcnow().date()
+    start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+    end_of_day = start_of_day + timedelta(days=1)
+
+    usage_data = usage_collection.find_one({
+        'user_id': user_id,
+        'date': {'$gte': start_of_day, '$lt': end_of_day}
+    })
+
+    return usage_data.get('usage', 0) if usage_data else 0
+
 
 async def set_daily_usage(user_id: int, usage: int):
     """Sets a user's current daily usage in bytes"""
-    # Not implemented persistence, replace with actual db save
-    pass
+    if not usage_collection:
+        return
+
+    today = datetime.utcnow().date()
+    start_of_day = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+    end_of_day = start_of_day + timedelta(days=1)
+
+    usage_collection.update_one(
+        {
+            'user_id': user_id,
+            'date': {'$gte': start_of_day, '$lt': end_of_day}
+        },
+        {'$set': {'usage': usage, 'user_id': user_id, 'date': start_of_day}},
+        upsert=True
+    )
 
 
 async def check_daily_limit(user_id: int, file_size: int) -> bool:

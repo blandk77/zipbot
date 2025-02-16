@@ -9,10 +9,12 @@ import time
 import asyncio
 import zipfile
 from datetime import datetime, timedelta, timezone
+
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
+
 import pymongo
 from utils import download_files, add_to_zip #Imported functions
 
@@ -77,7 +79,7 @@ async def send_start_message():
 # MongoDB Functions
 async def is_premium_user(user_id: int) -> bool:
     """Checks if a user is a premium user."""
-    if not IS_PREMIUM or not user_collection:  # Check IS_PREMIUM flag
+    if not IS_PREMIUM or user_collection is None:  # Check IS_PREMIUM flag
         return False
     try:
         user = user_collection.find_one({'user_id': user_id, 'is_premium': True})
@@ -91,7 +93,7 @@ async def is_premium_user(user_id: int) -> bool:
 
 async def add_premium_user(user_id: int):
     """Adds a user to the premium users collection."""
-    if not IS_PREMIUM or not user_collection:  # Check IS_PREMIUM flag
+    if not IS_PREMIUM or user_collection is None:  # Check IS_PREMIUM flag
         return False
     try:
         expiry_date = datetime.utcnow() + timedelta(days=PREMIUM_DAYS)
@@ -107,7 +109,7 @@ async def add_premium_user(user_id: int):
 
 async def get_daily_usage(user_id: int) -> int:
     """Gets a user's current daily usage in bytes"""
-    if not IS_PREMIUM or not user_collection:
+    if not IS_PREMIUM or user_collection is None:
         return 0
 
     try:
@@ -128,7 +130,7 @@ async def get_daily_usage(user_id: int) -> int:
 
 async def set_daily_usage(user_id: int, usage: int):
     """Sets a user's current daily usage in bytes"""
-    if not IS_PREMIUM or not user_collection:
+    if not IS_PREMIUM or user_collection is None:
         return
 
     try:
@@ -247,7 +249,7 @@ async def start_task_handler(event: MessageEvent):
     zip_names[sender_id] = event.pattern_match['name']
 
     await event.respond('OK, send me some files. Use /done when finished.')
-
+    print(f"start_task_handler: tasks = {tasks}") #Added for debugging
     raise StopPropagation
 
 
@@ -262,6 +264,7 @@ async def add_file_handler(event: MessageEvent):
         return
 
     tasks[event.sender_id].append(event.id)
+    print(f"add_file_handler: tasks = {tasks}") #Added for debugging
     raise StopPropagation
 
 

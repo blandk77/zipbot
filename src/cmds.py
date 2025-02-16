@@ -1,4 +1,4 @@
-
+from functools import partial
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
 import os

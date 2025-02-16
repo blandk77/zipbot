@@ -2,11 +2,13 @@
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
 import os
-import time
+import time #Imported time
+import asyncio #Imported asyncio
+from datetime import datetime, timedelta, timezone #Imported datetime
 
 MessageEvent = NewMessage.Event | Message
 
-def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging, is_premium_user, add_premium_user, get_daily_usage, set_daily_usage, get_entity): #Added functions and get_entity
+def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging, is_premium_user, add_premium_user, get_daily_usage, set_daily_usage, get_entity, bot): #Added functions and get_entity and bot
     @bot.on(NewMessage(pattern='/start'))
     async def start_command_handler(event: MessageEvent):
         await event.respond(
@@ -69,7 +71,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
         if sender_id == ADMIN_USER_ID:
             user_id = int(event.pattern_match['user_id'])
             try:
-                user = await bot.get_entity(user_id)
+                user = await get_entity(user_id) #Here
                 username = user.username or user.first_name
             except Exception:
                 username = str(user_id)  # If can't fetch user, just use ID string

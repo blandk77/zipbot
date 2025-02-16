@@ -6,7 +6,7 @@ import time
 
 MessageEvent = NewMessage.Event | Message
 
-def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging):
+def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging, is_premium_user, add_premium_user, get_daily_usage, set_daily_usage, get_entity): #Added functions and get_entity
     @bot.on(NewMessage(pattern='/start'))
     async def start_command_handler(event: MessageEvent):
         await event.respond(

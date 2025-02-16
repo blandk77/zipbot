@@ -1,4 +1,3 @@
-
 from functools import partial
 from asyncio import get_running_loop
 from shutil import rmtree
@@ -8,20 +7,13 @@ import os
 import time
 import asyncio
 from datetime import datetime, timedelta
-import pytz  # For IST timezone
-
+import pytz 
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.events import NewMessage, StopPropagation
 from telethon.tl.custom import Message
-
-# Import for web server
 from aiohttp import web
-
-# Import utils file
 from utils import download_files, add_to_zip
-
-# MongoDB Imports
 import pymongo
 
 load_dotenv()
@@ -35,15 +27,13 @@ WEB_PORT = int(os.environ.get('PORT', 8080))
 WEB_ROUTE = os.environ.get('WEB_ROUTE', '/')
 STORAGE = Path('./files/')
 os.makedirs(STORAGE, exist_ok=True)
-
-# MongoDB Configuration
+PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
+DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
+PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
+UPI_DETAILS = os.environ.get('UPI_DETAILS', "your_upi_id@examplebank")
 MONGO_URL = os.environ.get("MONGO_URL")
-DATABASE_NAME = "zipping_bot"
-USER_COLLECTION = "users"
-DAILY_LIMIT_GB = 6
-PREMIUM_DAYS = 28
-UPI_DETAILS = "@7305347700@pytes"  # Replace with your actual UPI ID
-PAID_PLANS = "Premium Plan: Unlimited Download for 28 Days. Price: 20 INR"  # Replace with plan info
+DATABASE_NAME = "TG-zip_bot"
+USER_COLLECTION = "Details"
 
 MessageEvent = NewMessage.Event | Message
 

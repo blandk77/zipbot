@@ -4,8 +4,8 @@ import os
 import time
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from pyrofork import Client, filters
-from pyrofork.types import Message
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
 # Define a type alias for message events
 MessageEvent = Message

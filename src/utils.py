@@ -3,8 +3,8 @@ import time
 from pathlib import Path
 from zipfile import ZipFile
 
-from pyrofork import Client
-from pyrofork.types import Message
+from pyrogram import Client
+from pyrogram.types import Message
 
 async def download_files(message: Message, root: Path, client: Client, progress_message, total_files, file_number, start_time, total_size):
     try:

@@ -1,42 +1,39 @@
-from asyncio import get_running_loop
-from shutil import rmtree
-from pathlib import Path
+
+import asyncio
 import logging
 import os
-import asyncio
+from pathlib import Path
+from shutil import rmtree
 from datetime import datetime, timedelta, timezone
 
-from dotenv import load_dotenv
-from telethon import TelegramClient
-from telethon.events import NewMessage
-from telethon.tl.custom import Message
-
 import pymongo
-from utils import download_files, add_to_zip  # Imported functions
-from cmds import register_commands #Imported Register commands
+from dotenv import load_dotenv
+from pyrofork import Client, filters
+from utils import download_files, add_to_zip
+from cmds import register_commands
 
 load_dotenv()
 
+# Environment variables (replace with your actual values)
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
 BOT_TOKEN = os.environ['BOT_TOKEN']
 CONC_MAX = int(os.environ.get('CONC_MAX', 3))
-LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))  # Added logs channel
-FILES_CHANNEL = int(os.environ.get('FILES_CHANNEL', 0)) # Added files channel
+LOGS_CHANNEL = int(os.environ.get('LOGS_CHANNEL', 0))
+FILES_CHANNEL = int(os.environ.get('FILES_CHANNEL', 0))
 STORAGE = Path('./files/')
 os.makedirs(STORAGE, exist_ok=True)
-MONGO_URL = os.environ['MONGO_URL']  # Make MONGO_URL required
+MONGO_URL = os.environ['MONGO_URL']
 ADMIN_USER_ID = int(os.environ.get('ADMIN_USER_ID', 0))
 PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
 DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
 PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
 UPI_DETAILS = os.environ.get('UPI_DETAILS', "your_upi_id@examplebank")
 DB_NAME = os.environ.get("DB_NAME", "telegram_zip_bot")
-COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "user_data")  # Single collection name
-IS_PREMIUM = os.environ.get('IS_PREMIUM', 'False').lower() == 'true'  # Boolean premium mode
+COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "user_data")
+IS_PREMIUM = os.environ.get('IS_PREMIUM', 'False').lower() == 'true'
 
-MessageEvent = NewMessage.Event | Message
-
+# Configure logging
 logging.basicConfig(
     format='[%(levelname)s/%(asctime)s] %(name)s: %(message)s',
     level=logging.INFO,
@@ -45,19 +42,20 @@ logging.basicConfig(
     ]
 )
 
-tasks: dict[int, list[int]] = {}
-stop_download: dict[int, bool] = {}
-zip_names: dict[int, str] = {}
-download_semaphore = asyncio.Semaphore(CONC_MAX)  # Semaphore for download concurrency
+# Global variables
+tasks = {}  # User ID: [Message IDs]
+stop_download = {}  # User ID: Boolean
+zip_names = {}  # User ID: Zip filename
+download_semaphore = asyncio.Semaphore(CONC_MAX)
 
-# Initialize Telegram client
-bot = TelegramClient('zipper', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+# Initialize PyroFork client
+bot = Client("zipper", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 # Initialize MongoDB client
 try:
     mongo_client = pymongo.MongoClient(MONGO_URL)
-    db = mongo_client[DB_NAME]  # Use the specified database name
-    user_collection = db[COLLECTION_NAME]  # Single collection for all data
+    db = mongo_client[DB_NAME]
+    user_collection = db[COLLECTION_NAME]
     logging.info("Connected to MongoDB")
 except Exception as e:
     logging.error(f"Failed to connect to MongoDB: {e}")
@@ -73,7 +71,8 @@ async def send_start_message():
         except Exception as e:
             logging.error(f"Failed to send start message to logs channel: {e}")
 
-# MongoDB Functions
+
+# MongoDB Functions (These remain the same as they are independent of Telethon/PyroFork)
 async def is_premium_user(user_id: int) -> bool:
     """Checks if a user is a premium user."""
     if not IS_PREMIUM or user_collection is None:  # Check IS_PREMIUM flag
@@ -164,7 +163,15 @@ async def check_daily_limit(user_id: int, file_size: int) -> bool:
 
 
 if __name__ == '__main__':
-    register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM, user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID, FILES_CHANNEL, check_daily_limit, get_running_loop, rmtree, download_files, add_to_zip, logging, is_premium_user, add_premium_user, get_daily_usage, set_daily_usage, bot.get_entity) #Added functions and get_entity and bot
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(send_start_message())
-    bot.run_until_disconnected()
+    # Register commands (passing all the necessary dependencies)
+    register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM,
+                      user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID,
+                      FILES_CHANNEL, check_daily_limit, asyncio.get_event_loop, rmtree,
+                      download_files, add_to_zip, logging, is_premium_user, add_premium_user,
+                      get_daily_usage, set_daily_usage)
+
+    async def main():
+        await send_start_message()
+        await bot.run()
+
+    asyncio.run(main())

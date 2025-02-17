@@ -7,5 +7,3 @@ Jinja2==3.0.3
 werkzeug==2.0.2
 itsdangerous==2.0.1
 pymongo
-pyromod 
-pyrogram

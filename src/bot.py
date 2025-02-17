@@ -64,10 +64,10 @@ except Exception as e:
     user_collection = None
 
 
-async def send_start_message():
+async def send_start_message(client):  # Pass the client instance
     if LOGS_CHANNEL:
         try:
-            await bot.send_message(LOGS_CHANNEL, "Bot started/restarted!")
+            await client.send_message(LOGS_CHANNEL, "Bot started/restarted!")
         except Exception as e:
             logging.error(f"Failed to send start message to logs channel: {e}")
 
@@ -171,7 +171,9 @@ if __name__ == '__main__':
                       get_daily_usage, set_daily_usage)
 
     async def main():
-        await send_start_message()
-        await bot.run()
+        await send_start_message(bot)  # Pass the client to send_start_message
+        await bot.start() #Start the client here
+        await asyncio.Future()  # Keep the bot running
+        await bot.stop()
 
     asyncio.run(main())

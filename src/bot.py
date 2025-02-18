@@ -171,9 +171,15 @@ if __name__ == '__main__':
                       get_daily_usage, set_daily_usage)
 
     async def main():
-        await send_start_message(bot)  # Pass the client to send_start_message
-        await bot.start() #Start the client here
-        await asyncio.Future()  # Keep the bot running
-        await bot.stop()
+        try:
+            await bot.start()
+            await send_start_message(bot)  # Pass the client to send_start_message
+            await asyncio.Future()  # Keep the bot running
+        except Exception as e:
+            logging.error(f"Bot main loop error: {e}")
+        finally:
+            await bot.stop()
+
+    #Remove CMD and run this in the shell
 
     asyncio.run(main())

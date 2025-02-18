@@ -9,8 +9,8 @@ from datetime import datetime, timedelta, timezone
 import pymongo
 from dotenv import load_dotenv
 from pyrogram import Client, filters
-from utils import download_files, add_to_zip
-from cmds import register_commands
+from src.utils import download_files, add_to_zip
+from src.cmds import register_commands
 from flask import Flask
 
 load_dotenv()

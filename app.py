@@ -159,6 +159,7 @@ async def check_daily_limit(user_id: int, file_size: int) -> bool:
         return False
 
 # Start the bot within the Flask app's event loop
+loop = asyncio.get_event_loop()
 async def start_bot():
     try:
         await bot.start()
@@ -167,20 +168,16 @@ async def start_bot():
     except Exception as e:
         logging.error(f"Error starting Telegram bot: {e}")
 
-    #The async task may not close in the future, so this may not work
-    #finally:
-        #await bot.stop()
-
-@app.before_first_request
-def before_first_request():
-    asyncio.create_task(start_bot())
-
 # Register commands
 register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT_GB, IS_PREMIUM,
                   user_collection, PREMIUM_DAYS, PAID_PLANS, UPI_DETAILS, ADMIN_USER_ID,
                   FILES_CHANNEL, check_daily_limit, asyncio.get_event_loop, rmtree,
                   download_files, add_to_zip, logging, is_premium_user, add_premium_user,
                   get_daily_usage, set_daily_usage)
+
+@app.before_first_request
+def before_first_request():
+    loop.create_task(start_bot())
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8080)

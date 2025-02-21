@@ -12,8 +12,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/start'))
     async def start_command_handler(event: MessageEvent):
         await event.respond(
-            'Hello! I am a bot that can help you zip files from Telegram.\n'
-            'Use /help to see available commands.'
+            '<blockquote><b>Hᴇʟʟᴏ ᴛʜᴇʀᴇ! \n\nIᴍ ᴀ ᴀᴅᴠᴀɴᴄᴇ ғɪʟᴇs ᴢɪᴘ ʙᴏᴛ! I ᴄᴀɴ ᴢɪᴘ ғɪʟᴇs ᴛɪʟʟ 2ɢʙ ᴀɴᴅ Iᴍ ғʀᴇᴇ ᴛᴏ ᴜsᴇ 🤩. Iᴍ ᴀ ʙᴏᴛ ʙʏ</b> <a href="https://t.me/The_TGguy">𝑇𝑒𝑙𝑒𝑔𝑟𝑎𝑚 𝐺𝑢𝑦</a>!!\n\n<i>==&gt;</i> <a href="https://t.me/The_TGguy">𝑈𝑝𝑑𝑎𝑡𝑒𝑠 𝐶ℎ𝑎𝑛𝑛𝑒𝑙</a> \n\n<i>==&gt;</i> <a href="https://t.me/Tg_Guy_Support">𝑆𝑢𝑝𝑝𝑜𝑟𝑡 𝑔𝑟𝑜𝑢𝑝</a></blockquote>'
         )
         raise StopPropagation
 
@@ -47,7 +46,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             try:
                 user = user_collection.find_one({'user_id': sender_id})
                 expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
-                await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑷𝒓𝒆𝒎𝒊𝒖𝒎 ★ \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: {PREMIUM_DAYS}  𝒅𝒂𝒚𝒔 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ:  {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}\n~ Lɪᴍɪᴛ: 𝑵𝒐𝒏𝒆\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝚃𝚘 𝚙𝚞𝚛𝚌𝚑𝚊𝚜𝚎 𝚊 𝚙𝚕𝚊𝚗, 𝚜𝚎𝚎 /buy')
+                await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑷𝒓𝒆𝒎𝒊𝒖𝒎 ★ \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: {PREMIUM_DAYS}  𝒅𝒂𝒚𝒔 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ:  {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}\n~ Lɪᴍɪᴛ: 𝑵𝒐𝒏𝒆\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷')
             except Exception as e:
                 logging.error(f"Error displaying premium plan: {e}")
                 await event.respond("Error fetching your premium plan details.")
@@ -59,7 +58,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/buy'))
     async def buy_command_handler(event: MessageEvent):
         if IS_PREMIUM:
-            await event.respond(f'{PAID_PLANS}\nPayment Details (UPI): {UPI_DETAILS}')
+            await event.respond(f'{PAID_PLANS}\nPayment Details: {UPI_DETAILS}. ')
         else:
             await event.respond('Premium plans are currently disabled.')
         raise StopPropagation

@@ -47,7 +47,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             try:
                 user = user_collection.find_one({'user_id': sender_id})
                 expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
-                await event.respond(f'You are a premium user/n. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
+                await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑷𝒓𝒆𝒎𝒊𝒖𝒎 ★ \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: 28 𝒅𝒂𝒚𝒔 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ:  {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}\n~ Lɪᴍɪᴛ: 𝑵𝒐𝒏𝒆\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝚃𝚘 𝚙𝚞𝚛𝚌𝚑𝚊𝚜𝚎 𝚊 𝚙𝚕𝚊𝚗, 𝚜𝚎𝚎 /buy')
             except Exception as e:
                 logging.error(f"Error displaying premium plan: {e}")
                 await event.respond("Error fetching your premium plan details.")

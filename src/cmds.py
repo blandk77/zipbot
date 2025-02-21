@@ -13,7 +13,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     async def start_command_handler(event: MessageEvent):
         await event.respond(
             '<blockquote><b>Hᴇʟʟᴏ ᴛʜᴇʀᴇ! \n\nIᴍ ᴀ ᴀᴅᴠᴀɴᴄᴇ ғɪʟᴇs ᴢɪᴘ ʙᴏᴛ! I ᴄᴀɴ ᴢɪᴘ ғɪʟᴇs ᴛɪʟʟ 2ɢʙ ᴀɴᴅ Iᴍ ғʀᴇᴇ ᴛᴏ ᴜsᴇ 🤩. Iᴍ ᴀ ʙᴏᴛ ʙʏ</b> <a href="https://t.me/The_TGguy">𝑇𝑒𝑙𝑒𝑔𝑟𝑎𝑚 𝐺𝑢𝑦</a>!!\n\n<i>==&gt;</i> <a href="https://t.me/The_TGguy">𝑈𝑝𝑑𝑎𝑡𝑒𝑠 𝐶ℎ𝑎𝑛𝑛𝑒𝑙</a> \n\n<i>==&gt;</i> <a href="https://t.me/Tg_Guy_Support">𝑆𝑢𝑝𝑝𝑜𝑟𝑡 𝑔𝑟𝑜𝑢𝑝</a></blockquote>',
-            parse_mode='html'
+            parse_mode='html',
             link_preview=False
         )
         raise StopPropagation
@@ -61,7 +61,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/buy'))
     async def buy_command_handler(event: MessageEvent):
         if IS_PREMIUM:
-            await event.respond(f'{PAID_PLANS}\n<i>Payment Details</i>: <code>{UPI_DETAILS}</code>.\n<i>Contact @TGguy_Ownerobot before buying!</i>', parse_mode='html')
+            await event.respond(f'{PAID_PLANS}\n<i>Payment Details</i>: <code>{UPI_DETAILS}</code>.\n<i>Contact @TGguy_Ownerobot before buying!</i>', parse_mode='html', link_preview=False)
         else:
             await event.respond('I am currently free to use without any limit 🤩\nJoin @The_TGguy.', parse_mode='html')
         raise StopPropagation

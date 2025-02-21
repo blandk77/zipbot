@@ -21,21 +21,21 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/help'))
     async def help_command_handler(event: MessageEvent):
         await event.respond(
-            'Hᴏᴡ ᴛᴏ ᴜsᴇ ᴍᴇ??\n'
+            '<blockquote>Hᴏᴡ ᴛᴏ ᴜsᴇ ᴍᴇ??</blockquote>\n'
 
 'Usᴇ /zip ᴡɪᴛʜ ᴀ ɴᴇᴡ ғɪʟᴇ ɴᴀᴍᴇ ᴡɪᴛʜᴏᴜᴛ ᴇxᴛᴇɴsɪᴏɴ \n'
-'\n/zip TG \n'
+'\n<blockquote>/zip TG</blockquote> \n'
 'Tʜɪs ᴡɪʟʟ ᴍᴀᴋᴇ ᴛʜᴇ ғɪʟᴇ ɴᴀᴍᴇ ᴀs "TG" ᴀɴᴅ ᴛʜᴇɴ sᴇɴᴅ ᴀʟʟ ᴛʜᴇ ғɪʟᴇs ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴢɪᴘ (ʙᴏᴛ ᴄᴜʀʀᴇɴᴛʟʏ sᴜᴘᴘᴏʀᴛs 2ɢʙ ᴏɴʟʏ). Sᴇɴᴅ /done ᴀғᴛᴇʀ sᴇɴᴅɪɴɢ ᴀʟʟ ᴛʜᴇ ғɪʟᴇs. Tʜᴇ ғɪʟᴇs ᴡɪʟʟ sᴛᴀʀᴛ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ᴜᴘʟᴏᴀᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.'
 
 '\n\n<b>Available commands</b>:\n'
-'<i>/start</i> - <code>Starts the bot and shows a welcome message</code>.\n'
+'<blockquote expandable><i>/start</i> - <code>Starts the bot and shows a welcome message</code>.\n'
 '<i>/help</i> - <code>Shows this help message</code>.\n'
 '<i>/zip</i><i> &lt;filename&gt;</i> - <code>Notifies the bot that you are going to send files to be zipped. Filename must be specified</code>\n'
 '<i>/done</i> -  <code>Zips the files you sent after using /zip</code>.\n'
 '<i>/cancel</i> - <code>Cancels the current zipping task and removes the files from the queue.</code>\n'
 '<i>/stop</i> - <code>Stops the downloading process but does not remove files from queue</code>\n'
 '<i>/myplan</i> - <code>Shows your current plan</code>.\n'
-'<i>/buy</i> - <code>Shows available premium plans.</code>\n '
+'<i>/buy</i> - <code>Shows available premium plans.</code>\n </blockquote>'
         )
         raise StopPropagation
 

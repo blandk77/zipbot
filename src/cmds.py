@@ -12,7 +12,8 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/start'))
     async def start_command_handler(event: MessageEvent):
         await event.respond(
-            '<blockquote><b>Hᴇʟʟᴏ ᴛʜᴇʀᴇ! \n\nIᴍ ᴀ ᴀᴅᴠᴀɴᴄᴇ ғɪʟᴇs ᴢɪᴘ ʙᴏᴛ! I ᴄᴀɴ ᴢɪᴘ ғɪʟᴇs ᴛɪʟʟ 2ɢʙ ᴀɴᴅ Iᴍ ғʀᴇᴇ ᴛᴏ ᴜsᴇ 🤩. Iᴍ ᴀ ʙᴏᴛ ʙʏ</b> <a href="https://t.me/The_TGguy">𝑇𝑒𝑙𝑒𝑔𝑟𝑎𝑚 𝐺𝑢𝑦</a>!!\n\n<i>==&gt;</i> <a href="https://t.me/The_TGguy">𝑈𝑝𝑑𝑎𝑡𝑒𝑠 𝐶ℎ𝑎𝑛𝑛𝑒𝑙</a> \n\n<i>==&gt;</i> <a href="https://t.me/Tg_Guy_Support">𝑆𝑢𝑝𝑝𝑜𝑟𝑡 𝑔𝑟𝑜𝑢𝑝</a></blockquote>'
+            '<blockquote><b>Hᴇʟʟᴏ ᴛʜᴇʀᴇ! \n\nIᴍ ᴀ ᴀᴅᴠᴀɴᴄᴇ ғɪʟᴇs ᴢɪᴘ ʙᴏᴛ! I ᴄᴀɴ ᴢɪᴘ ғɪʟᴇs ᴛɪʟʟ 2ɢʙ ᴀɴᴅ Iᴍ ғʀᴇᴇ ᴛᴏ ᴜsᴇ 🤩. Iᴍ ᴀ ʙᴏᴛ ʙʏ</b> <a href="https://t.me/The_TGguy">𝑇𝑒𝑙𝑒𝑔𝑟𝑎𝑚 𝐺𝑢𝑦</a>!!\n\n<i>==&gt;</i> <a href="https://t.me/The_TGguy">𝑈𝑝𝑑𝑎𝑡𝑒𝑠 𝐶ℎ𝑎𝑛𝑛𝑒𝑙</a> \n\n<i>==&gt;</i> <a href="https://t.me/Tg_Guy_Support">𝑆𝑢𝑝𝑝𝑜𝑟𝑡 𝑔𝑟𝑜𝑢𝑝</a></blockquote>',
+            parse_mode='html'
         )
         raise StopPropagation
 
@@ -34,7 +35,8 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
 '<i>/cancel</i> - <code>Cancels the current zipping task and removes the files from the queue.</code>\n'
 '<i>/stop</i> - <code>Stops the downloading process but does not remove files from queue</code>\n'
 '<i>/myplan</i> - <code>Shows your current plan</code>.\n'
-'<i>/buy</i> - <code>Shows available premium plans.</code>\n </blockquote>'
+'<i>/buy</i> - <code>Shows available premium plans.</code>\n </blockquote>',
+            parse_mode='html'
         )
         raise StopPropagation
 
@@ -46,21 +48,21 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             try:
                 user = user_collection.find_one({'user_id': sender_id})
                 expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
-                await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑷𝒓𝒆𝒎𝒊𝒖𝒎 ★ \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: {PREMIUM_DAYS}  𝒅𝒂𝒚𝒔 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ:  {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}\n~ Lɪᴍɪᴛ: 𝑵𝒐𝒏𝒆\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷')
+                await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑷𝒓𝒆𝒎𝒊𝒖𝒎 ★ \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: {PREMIUM_DAYS}  𝒅𝒂𝒚𝒔 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ:  {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}\n~ Lɪᴍɪᴛ: 𝑵𝒐𝒏𝒆\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷', parse_mode='html')
             except Exception as e:
                 logging.error(f"Error displaying premium plan: {e}")
-                await event.respond("Error fetching your premium plan details.")
+                await event.respond("Error fetching your premium plan details.", parse_mode='html')
         else:
-            await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑭𝒓𝒆𝒆 °=° \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: 𝑳𝒊𝒇𝒆𝒍𝒐𝒏𝒈 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ: 𝑵𝒐𝒏𝒆 \n~ Lɪᴍɪᴛ: {DAILY_LIMIT_GB} GB/Per day \n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝚃𝚘 𝚙𝚞𝚛𝚌𝚑𝚊𝚜𝚎 𝚊 𝚙𝚕𝚊𝚗, 𝚜𝚎𝚎 /buy')
+            await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑭𝒓𝒆𝒆 °=° \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: 𝑳𝒊𝒇𝒆𝒍𝒐𝒏𝒈 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ: 𝑵𝒐𝒏𝒆 \n~ Lɪᴍɪᴛ: {DAILY_LIMIT_GB} GB/Per day \n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝚃𝚘 𝚙𝚞𝚛𝚌𝚑𝚊𝚜𝚎 𝚊 𝚙𝚕𝚊𝚗, 𝚜𝚎𝚎 /buy', parse_mode='html')
         raise StopPropagation
 
 
     @bot.on(NewMessage(pattern='/buy'))
     async def buy_command_handler(event: MessageEvent):
         if IS_PREMIUM:
-            await event.respond(f'{PAID_PLANS}\nPayment Details: {UPI_DETAILS}. ')
+            await event.respond(f'{PAID_PLANS}\nPayment Details: {UPI_DETAILS}. ', parse_mode='html')
         else:
-            await event.respond('Premium plans are currently disabled.')
+            await event.respond('Premium plans are currently disabled.', parse_mode='html')
         raise StopPropagation
 
 
@@ -75,11 +77,11 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             except Exception:
                 username = str(user_id)  # If can't fetch user, just use ID string
             if await add_premium_user(user_id):
-                await event.respond(f'{username} got premium enabled for {PREMIUM_DAYS} days.')
+                await event.respond(f'{username} got premium enabled for {PREMIUM_DAYS} days.', parse_mode='html')
             else:
-                await event.respond('Failed to add premium user (database error).')
+                await event.respond('Failed to add premium user (database error).', parse_mode='html')
             return #Early return to avoid error in non-admin.
-        await event.respond('You are not authorized to use this command.')
+        await event.respond('You are not authorized to use this command.', parse_mode='html')
         raise StopPropagation
 
 
@@ -91,7 +93,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
         stop_download[sender_id] = False
         zip_names[sender_id] = event.pattern_match['name']
 
-        await event.respond('OK, send me some files. Use /done when finished.')
+        await event.respond('OK, send me some files. Use /done when finished.', parse_mode='html')
         print(f"start_task_handler: tasks = {tasks}") #Added for debugging
         raise StopPropagation
 
@@ -103,7 +105,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
         file_size = event.file.size
 
         if not await check_daily_limit(sender_id, file_size):
-            await event.respond(f"Sorry, you have exceeded your daily limit of {DAILY_LIMIT_GB} GB. Use /buy to upgrade to premium.", reply_to=event.id)
+            await event.respond(f"Sorry, you have exceeded your daily limit of {DAILY_LIMIT_GB} GB. Use /buy to upgrade to premium.", reply_to=event.id, parse_mode='html')
             return
 
         tasks[event.sender_id].append(event.id)
@@ -116,18 +118,18 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     async def zip_handler(event: MessageEvent):
         sender_id = event.sender_id
         if sender_id not in tasks:
-            await event.respond('You must use /zip first.')
+            await event.respond('You must use /zip first.', parse_mode='html')
         elif not tasks[sender_id]:
-            await event.respond('You must send me some files first.')
+            await event.respond('You must send me some files first.', parse_mode='html')
         elif sender_id not in zip_names:
-            await event.respond('Filename not specified. Use /zip <filename> first.')
+            await event.respond('Filename not specified. Use /zip <filename> first.', parse_mode='html')
         else:
             messages = await bot.get_messages(
                 sender_id, ids=tasks[sender_id])
             zip_size = sum([m.file.size for m in messages if m.file])
 
             if zip_size > 1024 * 1024 * 2000:
-                await event.respond('Total filesize must not exceed 2.0 GB.')
+                await event.respond('Total filesize must not exceed 2.0 GB.', parse_mode='html')
             else:
                 root = STORAGE / f'{sender_id}/'
                 os.makedirs(root, exist_ok=True)
@@ -138,14 +140,14 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                 files_downloaded = 0
                 start_time = time.time()
 
-                progress_message = await event.respond("Starting download...")
+                progress_message = await event.respond("Starting download...", parse_mode='html')
                 progress_message_id = progress_message.id
 
 
                 async def download_and_add_file(message, file_number, zip_size, event, progress_message_id, start_time): # Changed total_size to zip_size
                     try:
                         if stop_download[sender_id]:
-                            await bot.send_message(event.chat_id, "Download stopped by user.")
+                            await bot.send_message(event.chat_id, "Download stopped by user.", parse_mode='html')
                             return False
 
                         file_path = await download_files(message, root, bot, event, progress_message_id, total_files, file_number, start_time, zip_size) # Changed total_size to zip_size
@@ -157,10 +159,10 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                             files_downloaded += 1
                             return True
                         else:
-                            await bot.send_message(event.chat_id, "Failed to download file")
+                            await bot.send_message(event.chat_id, "Failed to download file", parse_mode='html')
                             return False
                     except Exception as e:
-                        await bot.send_message(event.chat_id, f"Error processing file: {e}")
+                        await bot.send_message(event.chat_id, f"Error processing file: {e}", parse_mode='html')
                         return False
 
 
@@ -172,7 +174,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                 total_time = end_time - start_time
 
                 if all(results):
-                    await bot.send_message(event.chat_id, f"All files downloaded and zipped in {total_time:.2f} seconds.")
+                    await bot.send_message(event.chat_id, f"All files downloaded and zipped in {total_time:.2f} seconds.", parse_mode='html')
                     # Send the zipped file
                     try:
                         await bot.send_file(event.chat_id, zip_name_str, caption="Done!")
@@ -183,9 +185,9 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                             except Exception as e:
                                 logging.error(f"Failed to send zipped file to files channel: {e}")
                     except Exception as e:
-                        await event.respond(f"Error sending zipped file: {e}")
+                        await event.respond(f"Error sending zipped file: {e}", parse_mode='html')
                 else:
-                    await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop.")
+                    await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop.", parse_mode='html')
 
                 try:
                     await get_running_loop().run_in_executor(
@@ -207,9 +209,9 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             tasks.pop(sender_id)
             stop_download.pop(sender_id)
             zip_names.pop(sender_id)
-            await event.respond('Zipping task cancelled and files removed from queue. Use /zip for a new one.')
+            await event.respond('Zipping task cancelled and files removed from queue. Use /zip for a new one.', parse_mode='html')
         except KeyError:
-            await event.respond('No active zipping task to cancel.')
+            await event.respond('No active zipping task to cancel.', parse_mode='html')
 
         raise StopPropagation
 
@@ -218,7 +220,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
         sender_id = event.sender_id
         if sender_id in stop_download:
             stop_download[sender_id] = True
-            await event.respond("Stopping the download process...")
+            await event.respond("Stopping the download process...", parse_mode='html')
         else:
-            await event.respond("No active download to stop. Please use /zip first.")
+            await event.respond("No active download to stop. Please use /zip first.", parse_mode='html')
         raise StopPropagation

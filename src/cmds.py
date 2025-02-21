@@ -52,7 +52,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                 logging.error(f"Error displaying premium plan: {e}")
                 await event.respond("Error fetching your premium plan details.")
         else:
-            await event.respond(f'You are a free user. Your daily limit is {DAILY_LIMIT_GB} GB.')
+            await event.respond(f'÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n~ Pʟᴀɴ: 𝑭𝒓𝒆𝒆 °=° \n~ Pʟᴀɴ Vᴀʟɪᴅɪᴛʏ: 𝑳𝒊𝒇𝒆𝒍𝒐𝒏𝒈 \n~ Pʟᴀɴ ᴇxᴘɪʀʏ ᴅᴀᴛᴇ: 𝑵𝒐𝒏𝒆 \n~ Lɪᴍɪᴛ: {DAILY_LIMIT_GB} GB/Per day \n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝚃𝚘 𝚙𝚞𝚛𝚌𝚑𝚊𝚜𝚎 𝚊 𝚙𝚕𝚊𝚗, 𝚜𝚎𝚎 /buy')
         raise StopPropagation
 
 

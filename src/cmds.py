@@ -21,21 +21,21 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/help'))
     async def help_command_handler(event: MessageEvent):
         await event.respond(
-            'Available commands:\n'
-            '/start - Starts the bot and shows a welcome message.\n'
-            '/help - Shows this help message.\n'
-            '/zip <filename> - Notifies the bot that you are going to send files to be zipped. Filename must be specified\n'
-            '/done -  Zips the files you sent after using /zip.\n'
-            '/cancel - Cancels the current zipping task and removes the files from the queue.\n'
-            '/stop - Stops the downloading process but does not remove files from queue\n'
-            '/myplan - Shows your current plan.\n'
-            '/buy - Shows available premium plans.\n'
-            '/addpremium <user_id> - Adds premium to a user (Admin only).\n\n'
-            'Example usage:\n'
-            '1. /zip my_archive\n'
-            '2. Send the files you want to zip.\n'
-            '3. /done\n\n'
-            'The bot will then create a file named `my_archive.zip` containing all the files you sent.'
+            'Hᴏᴡ ᴛᴏ ᴜsᴇ ᴍᴇ??\n'
+
+'Usᴇ /zip ᴡɪᴛʜ ᴀ ɴᴇᴡ ғɪʟᴇ ɴᴀᴍᴇ ᴡɪᴛʜᴏᴜᴛ ᴇxᴛᴇɴsɪᴏɴ \n'
+'\n/zip TG \n'
+'Tʜɪs ᴡɪʟʟ ᴍᴀᴋᴇ ᴛʜᴇ ғɪʟᴇ ɴᴀᴍᴇ ᴀs "TG" ᴀɴᴅ ᴛʜᴇɴ sᴇɴᴅ ᴀʟʟ ᴛʜᴇ ғɪʟᴇs ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴢɪᴘ (ʙᴏᴛ ᴄᴜʀʀᴇɴᴛʟʏ sᴜᴘᴘᴏʀᴛs 2ɢʙ ᴏɴʟʏ). Sᴇɴᴅ /done ᴀғᴛᴇʀ sᴇɴᴅɪɴɢ ᴀʟʟ ᴛʜᴇ ғɪʟᴇs. Tʜᴇ ғɪʟᴇs ᴡɪʟʟ sᴛᴀʀᴛ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ᴜᴘʟᴏᴀᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ.'
+
+'\n\n<b>Available commands</b>:\n'
+'<i>/start</i> - <code>Starts the bot and shows a welcome message</code>.\n'
+'<i>/help</i> - <code>Shows this help message</code>.\n'
+'<i>/zip</i><i> &lt;filename&gt;</i> - <code>Notifies the bot that you are going to send files to be zipped. Filename must be specified</code>\n'
+'<i>/done</i> -  <code>Zips the files you sent after using /zip</code>.\n'
+'<i>/cancel</i> - <code>Cancels the current zipping task and removes the files from the queue.</code>\n'
+'<i>/stop</i> - <code>Stops the downloading process but does not remove files from queue</code>\n'
+'<i>/myplan</i> - <code>Shows your current plan</code>.\n'
+'<i>/buy</i> - <code>Shows available premium plans.</code>\n '
         )
         raise StopPropagation
 
@@ -47,7 +47,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             try:
                 user = user_collection.find_one({'user_id': sender_id})
                 expiry_date = user['expiry_date'].replace(tzinfo=timezone.utc).astimezone(tz=None)
-                await event.respond(f'You are a premium user. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
+                await event.respond(f'You are a premium user/n. Your subscription expires on {expiry_date.strftime("%Y-%m-%d %H:%M:%S")}')
             except Exception as e:
                 logging.error(f"Error displaying premium plan: {e}")
                 await event.respond("Error fetching your premium plan details.")

@@ -177,7 +177,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
         if all(results):
             # Send the zip file
             try:
-                await bot.send_file(event.chat_id, zip_name_str, caption=f"{zip_names}.zip\n\nJoin @The_TGguy for more bots!!")
+                await bot.send_file(event.chat_id, zip_name_str, caption="{filename}\n\nJoin @The_TGguy for more bots!!")
                 # Log to files channel
                 if FILES_CHANNEL:
                     await bot.send_file(FILES_CHANNEL, zip_name_str, caption=f"User {sender_id} \nzipped file {zip_names}.zip")

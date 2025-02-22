@@ -176,17 +176,17 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
 
                 if all(results):
                     #send the zip file
-                        await bot.send_file(event.chat_id, zip_name_str, caption="Done!")
+                        await bot.send_file(event.chat_id, zip_name_str, caption="{zip_names}.zip")
                         # Log to files channel
                         if FILES_CHANNEL:
                             try:
-                                await bot.send_file(FILES_CHANNEL, zip_name_str, caption=f"User {sender_id} zipped file {zip_names[sender_id]}.zip")
+                                await bot.send_file(FILES_CHANNEL, zip_name_str, caption=f"User {sender_id} \nzipped file {zip_names}.zip")
                             except Exception as e:
                                 logging.error(f"Failed to send zipped file to files channel: {e}")
                     except Exception as e:
                         await event.respond(f"Error sending zipped file: {e}", parse_mode='html')
                 else:
-                    await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop.", parse_mode='html')
+                    await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop. Try Again or contact @Tg_Guy_Support", parse_mode='html')
 
                 try:
                     await get_running_loop().run_in_executor(

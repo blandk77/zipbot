@@ -175,9 +175,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                 total_time = end_time - start_time
 
                 if all(results):
-                    await bot.send_message(event.chat_id, f"All files downloaded and zipped in {total_time:.2f} seconds.", parse_mode='html')
-                    # Send the zipped file
-                    try:
+                    #send the zip file
                         await bot.send_file(event.chat_id, zip_name_str, caption="Done!")
                         # Log to files channel
                         if FILES_CHANNEL:

@@ -61,7 +61,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/buy'))
     async def buy_command_handler(event: MessageEvent):
         if IS_PREMIUM:
-            await event.respond(f'{PAID_PLANS}\n<i>Payment Details</i>: <code>{UPI_DETAILS}</code>.\n<i>Contact @TGguy_Ownerobot before buying!</i>', parse_mode='html', link_preview=False)
+            await event.respond(f'{PAID_PLANS}\n<i>Payment Details</i>: <code>{UPI_DETAILS}</code>.\n<i>A bot by @The_TGguy!</i>', parse_mode='html', link_preview=False)
         else:
             await event.respond('I am currently free to use without any limit 🤩\nJoin @The_TGguy.', parse_mode='html')
         raise StopPropagation

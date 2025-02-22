@@ -29,8 +29,8 @@ MONGO_URL = os.environ['MONGO_URL']  # Make MONGO_URL required
 ADMIN_USER_ID = int(os.environ.get('ADMIN_USER_ID', 0))
 PREMIUM_DAYS = int(os.environ.get('PREMIUM_DAYS', 28))
 DAILY_LIMIT_GB = int(os.environ.get('DAILY_LIMIT_GB', 6))
-PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: [Enter price] INR")
-UPI_DETAILS = os.environ.get('UPI_DETAILS', "your_upi_id@examplebank")
+PAID_PLANS = os.environ.get('PAID_PLANS', "Premium Plan: Unlimited Download for 28 Days. Price: 25 INR.")
+UPI_DETAILS = os.environ.get('UPI_DETAILS', "7305347700@pytes")
 DB_NAME = os.environ.get("DB_NAME", "telegram_zip_bot")
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "user_data")  # Single collection name
 IS_PREMIUM = os.environ.get('IS_PREMIUM', 'False').lower() == 'true'  # Boolean premium mode
@@ -69,7 +69,7 @@ except Exception as e:
 async def send_start_message():
     if LOGS_CHANNEL:
         try:
-            await bot.send_message(LOGS_CHANNEL, "Bot started/restarted!")
+            await bot.send_message(LOGS_CHANNEL, '<a href="https://t.me/TgXzipper">𝙵𝚒𝚕𝚎𝚜 𝚉𝚒𝚙𝚙𝚎𝚛</a> 𝒊𝒔 𝒔𝒕𝒂𝒓𝒕𝒆𝒅... 💝\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝑉𝑒𝑟𝑠𝑖𝑜𝑛: 𝘝-1\n𝑀𝑜𝑑𝑒𝑙: <a href="https://telethon.dev/">𝘛𝘦𝘭𝘦𝘵𝘩𝘰𝘯</a>\n𝐿𝑎𝑛𝑔𝑢𝑎𝑔𝑒: <a href="https://www.python.org/">𝘗𝘺𝘵𝘩𝘰𝘯</a>\n𝐷𝑎𝑡𝑎𝑏𝑎𝑠𝑒: <a href="https://www.mongodb.com/">𝘔𝘰𝘯𝘨𝘰 𝘋𝘉</a>\n𝐶𝑟𝑒𝑎𝑡𝑒𝑑 𝑏𝑦: <a href="https://t.me/Itsme123c">◉⁠‿⁠◉</a>\n\n÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷\n\n𝐽𝑜𝑖𝑛 <a href="https://t.me/The_TGguy">𝘛𝘦𝘭𝘦𝘨𝘳𝘢𝘮 𝘎𝘶𝘺!!</a>')
         except Exception as e:
             logging.error(f"Failed to send start message to logs channel: {e}")
 

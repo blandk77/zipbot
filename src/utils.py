@@ -15,7 +15,7 @@ async def download_files(message, root, bot, event, progress_message_id, total_f
             current_time = time.time()
 
             # Check if 5 seconds have passed since the last update
-            if current_time - last_update_time >= 1:
+            if current_time - last_update_time >= 5:
                 time_taken = current_time - start_dl_time
                 speed = downloaded / time_taken if time_taken > 0 else 0
                 speed_mbps = speed / (1024 * 1024)

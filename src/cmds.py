@@ -134,7 +134,7 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
             else:
                 root = STORAGE / f'{sender_id}/'
                 os.makedirs(root, exist_ok=True)
-                zip_name = root / (zip_names[user_id] + '.zip')
+                zip_name = root / (zip_names[sender_id] + '.zip')
                 zip_name_str = str(zip_name)
 
                 total_files = len(messages)

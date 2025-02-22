@@ -174,26 +174,26 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
                 end_time = time.time()
                 total_time = end_time - start_time
 
-                if all(results):
-                    #send the zip file
-                        await bot.send_file(event.chat_id, zip_name_str, caption=f"{zip_names}.zip\n\nJoin @The_TGguy for more bots!!")
-                        # Log to files channel
-                        if FILES_CHANNEL:
-                            try:
-                                await bot.send_file(FILES_CHANNEL, zip_name_str, caption=f"User {sender_id} \nzipped file {zip_names}.zip")
-                            except Exception as e:
-                                logging.error(f"Failed to send zipped file to files channel: {e}")
-                        except Exception as e:
-                        await event.respond(f"Error sending zipped file: {e}", parse_mode='html')
-                else:
-                    await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop. Try Again or contact @Tg_Guy_Support", parse_mode='html')
+        if all(results):
+            # Send the zip file
+            try:
+                await bot.send_file(event.chat_id, zip_name_str, caption=f"{zip_names}.zip\n\nJoin @The_TGguy for more bots!!")
+                # Log to files channel
+                if FILES_CHANNEL:
+                    await bot.send_file(FILES_CHANNEL, zip_name_str, caption=f"User {sender_id} \nzipped file {zip_names}.zip")
 
-                try:
-                    await get_running_loop().run_in_executor(
-                        None, rmtree, str(root))
-                except Exception as e:
-                    logging.error(f"Error deleting directory: {e}")
+            except Exception as e:
+                await event.respond(f"Error sending zipped file: {e}", parse_mode='html')
+                logging.error(f"Failed to send zipped file: {e}")
+        else:
+            await bot.send_message(event.chat_id, "Zipping process incomplete due to errors or user stop. Try Again or contact @Tg_Guy_Support", parse_mode='html')
 
+        try:
+            await get_running_loop().run_in_executor(
+                None, rmtree, str(root))
+        except Exception as e:
+            logging.error(f"Error deleting directory: {e}")
+        finally:
             tasks.pop(sender_id)
             stop_download.pop(sender_id)
             zip_names.pop(sender_id)

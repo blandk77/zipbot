@@ -61,7 +61,8 @@ def register_commands(bot, tasks, stop_download, zip_names, STORAGE, DAILY_LIMIT
     @bot.on(NewMessage(pattern='/buy'))
     async def buy_command_handler(event: MessageEvent):
         if IS_PREMIUM:
-            await event.respond(f'{PAID_PLANS}\n<i>Payment Details</i>: <code>{UPI_DETAILS}</code>.\n<i>A bot by @The_TGguy!</i>', parse_mode='html', link_preview=False)
+            await event.respond(f'<blockquote><b>Paid Plan: files Zipper plan (28 Days)</b></blockquote>\n\n•   <b>Price:</b> <code>20 INR</code>\n•   <b>Duration:</b> <code>28 Days</code>\n<b>Features:</b>\n•   <b>Unlimited Zipping:</b> <i>Enjoy unlimited file zipping for the entire 28-day duration. Zip as many files and folders as you need, every single day!</i> <i>(Still total file size will be 2gb)</i>\n• <b>Dedicated Support:</b>  <i>Get priority support for any questions or issues you encounter.  We're here to help you make the most of your zipping power.</i>\n\n<b>How to Subscribe:</b>\n\nContact @TGguy_Ownerobot and say -<code>Zip premium</code>-\n\n<b>Notes</b>\n\n•   Pricing is subject to change.\n•   By subscribing, you agree to our <a href="https://graph.org/Telegram-Guy-02-21-2">Terms Of Service</a>.
+\n<i>Payment Details</i>: <code>{UPI_DETAILS}</code>.\n<i>A bot by @The_TGguy!</i>', parse_mode='html', link_preview=False)
         else:
             await event.respond('I am currently free to use without any limit 🤩\nJoin @The_TGguy.', parse_mode='html')
         raise StopPropagation
